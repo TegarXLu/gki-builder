@@ -144,8 +144,8 @@ jobs:
           sudo aptitude install -y libssl-dev
 
       - name: Run Build Script
-        env:
-        export ARCH=arm64
+        run: |
+          export ARCH=arm64
           export SUBARCH=arm64
           export CLANG_PATH=$GITHUB_WORKSPACE/clang
           export PATH=$CLANG_PATH/bin:$PATH
@@ -167,14 +167,6 @@ jobs:
           export LTO=full
           make O=out ARCH=arm64 gki_defconfig
           make -j$(nproc) O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 LTO=full
-          KSU: ${{ inputs.KSU }}
-          KSU_SUSFS: ${{ inputs.KSU_SUSFS }}
-          KSU_MANUAL_HOOK: ${{ inputs.KSU_MANUAL_HOOK }}
-          BUILD_BOOTIMG: ${{ inputs.BUILD_BOOTIMG }}
-          LAST_BUILD: ${{ inputs.LAST_BUILD }}
-          TODO: ${{ inputs.TODO }}
-        run: |
-          export GIT_CLONE_PROTECTION_ACTIVE=false
           chmod +x *.sh
           ./build.sh
 
