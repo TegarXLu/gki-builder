@@ -79,7 +79,7 @@ jobs:
         with:
           fetch-depth: 1
           
-          - name: Clone Kernel Source
+      - name: Clone Kernel Source
         run: |
           git clone --depth=1 ${{ github.event.inputs.KERNEL_REPO }} -b ${{ github.event.inputs.KERNEL_BRANCH }} kernel
           
