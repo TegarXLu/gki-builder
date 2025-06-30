@@ -18,9 +18,19 @@ on:
 
   workflow_dispatch:
     inputs:
+      KERNEL_REPO:
+        description: 'Link repo kernel'
+        required: true
+        default: 'https://github.com/TegarXLu/GKI_kernel_5.10'
+        
+      KERNEL_BRANCH:
+        description: 'Branch kernel'
+        required: true
+        default: 'main'
+        
       TODO:
         description: To do
-        default: ""
+        default: "kernel"
         type: choice
         options:
           - "kernel"
@@ -28,17 +38,16 @@ on:
 
       KSU:
         description: KernelSU variant
-        default: ""
+        default: "Next"
         type: choice
         options:
           - "None"
           - "Next"
-          - "Rissu"
           - "Suki"
 
       KSU_SUSFS:
         description: Include SUSFS?
-        default: "false"
+        default: "true"
         type: choice
         options:
           - "true"
@@ -46,6 +55,14 @@ on:
 
       KSU_MANUAL_HOOK:
         description: Use KSU Manual Hooks?
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+      BUILD_BOOTIMG:
+        description: Build Boot Image?
         default: "false"
         type: choice
         options:
@@ -61,6 +78,51 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          
+          - name: Clone Kernel Source
+        run: |
+          git clone --depth=1 ${{ github.event.inputs.KERNEL_REPO }} -b ${{ github.event.inputs.KERNEL_BRANCH }} kernel
+          
+- name: Download Clang
+        run: |
+          mkdir clang
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz -O clang.tar.gz
+          tar -xf clang.tar.gz -C clang
+
+      - name: Verify Clang availability
+        run: |
+          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+          clang --version || exit 1
+      
+      - name: Set CONFIG_LOCALVERSION
+        run: |
+          if [[ "${{ matrix.name }}" == "noroot" ]]; then
+            DEFCONFIG=kernel/arch/arm64/configs/gki_defconfig
+            VERSION="-TegarXLu"
+          elif [[ "${{ matrix.name }}" == "ksunext" ]]; then
+            DEFCONFIG=ksunext/arch/arm64/configs/gki_defconfig
+            VERSION="-TegarXLu-KSUNext"
+          elif [[ "${{ matrix.name }}" == "sukisu" ]]; then
+            DEFCONFIG=sukisu/arch/arm64/configs/gki_defconfig
+            VERSION="-TegarXLu-SukiSU"
+          fi
+          sed -i '/CONFIG_LOCALVERSION/d' $DEFCONFIG
+          echo "CONFIG_LOCALVERSION=\"$VERSION\"" >> $DEFCONFIG
+      
+      - name: Append CONFIG_HZ_300 and CONFIG_HZ=300 to defconfig
+        run: |
+          echo -e '\nCONFIG_HZ_300=y\nCONFIG_HZ=300' >> kernel/arch/arm64/configs/gki_defconfig
+      
+      - name: Final Clean Tree Commit (before build)
+        run: |
+          cd kernel
+          git add .
+          git commit -m "Final clean tree before build" || true
+
+      - name: Fix kernel script permissions
+        run: |
+          cd ${{ matrix.name == 'noroot' && 'kernel' || matrix.name }}
+          chmod -R +x scripts
 
       - name: Determine Build Status
         run: |
@@ -72,58 +134,38 @@ jobs:
             echo "TRIGGER=workflow_dispatch" >> $GITHUB_ENV
           fi
 
-      - name: Validate Inputs and Secrets
-        env:
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }} # telegram chat id
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }} # telegram bot token
-          GH_TOKEN: ${{ secrets.GH_TOKEN }} # github token
-          KSU: ${{ inputs.KSU }}
-          KSU_SUSFS: ${{ inputs.KSU_SUSFS }}
-          KSU_MANUAL_HOOK: ${{ inputs.KSU_MANUAL_HOOK }}
-        run: |
-          _error() {
-              echo "❌ ERROR: $*"
-              let ret++
-          }
-
-          ret=0
-          # Check Secrets
-          if [[ -z "$TG_CHAT_ID" ]]; then
-            _error "Missing TG_CHAT_ID secret (Telegram Chat ID)"
-          fi
-          if [[ -z "$TG_BOT_TOKEN" ]]; then
-            _error "Missing TG_BOT_TOKEN secret (Telegram Bot Token)"
-          fi
-          if [[ -z "$GH_TOKEN" ]]; then
-            _error "Missing GH_TOKEN secret (GitHub PAT)"
-          fi
-
-          # Check KernelSU variants
-          if [[ $KSU == "None" && $KSU_SUSFS == "true" ]]; then
-              _error "Cannot use SuSFS without KernelSU"
-          fi
-          if [[ $KSU == "None" && $KSU_MANUAL_HOOK == "true" ]]; then
-            _error "Cannot use KSU Manual Hooks without KernelSU!"
-          fi
-
-          if [[ $ret -gt 0 ]]; then
-            exit $ret
-          fi
-
       - name: Install Dependencies
         run: |
           export MAN_DISABLE=true
           sudo apt update -y
-          sudo apt install -y bc cpio flex bison aptitude gh git python3 \
-                              tar perl wget curl lz4 zstd libarchive-tools aria2
+          sudo apt install -y bc cpio flex bison aptitude gh git python-is-python3 \
+                              tar perl wget curl lz4 zstd libarchive-tools
           sudo aptitude install -y libssl-dev
-          pip install lxml
 
       - name: Run Build Script
         env:
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }} # telegram chat id
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }} # telegram bot token
-          GH_TOKEN: ${{ secrets.GH_TOKEN }} # github token
+        export ARCH=arm64
+          export SUBARCH=arm64
+          export CLANG_PATH=$GITHUB_WORKSPACE/clang
+          export PATH=$CLANG_PATH/bin:$PATH
+          set -x
+          set -e
+          export CC=clang
+          export CXX=clang++
+          export LD=ld.lld
+          export AR=llvm-ar
+          export NM=llvm-nm
+          export OBJCOPY=llvm-objcopy
+          export OBJDUMP=llvm-objdump
+          export STRIP=llvm-strip
+          export HOSTCC=clang
+          export HOSTCXX=clang++
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export LLVM=1
+          export LLVM_IAS=1
+          export LTO=full
+          make O=out ARCH=arm64 gki_defconfig
+          make -j$(nproc) O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 LTO=full
           KSU: ${{ inputs.KSU }}
           KSU_SUSFS: ${{ inputs.KSU_SUSFS }}
           KSU_MANUAL_HOOK: ${{ inputs.KSU_MANUAL_HOOK }}
@@ -135,16 +177,58 @@ jobs:
           chmod +x *.sh
           ./build.sh
 
-      - name: Upload Artifacts (ZIP & IMG)
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BASE_NAME }}-${{ github.run_number }}
-          path: |
-            artifacts/*.zip
-            artifacts/*.img
+          name: ${{ steps.zipkernel.outputs.zip_name }}
+          path: ${{ steps.zipkernel.outputs.zip_name }}
 
-      - name: Upload Artifacts (Info File)
-        uses: actions/upload-artifact@v4
+  finalize:
+    needs: [set-date, build]
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ needs.set-date.outputs.date }}
+    steps:
+      - name: Dummy Finalize
+        run: echo "Finalize completed"
+
+  release:
+    needs: [finalize]
+    if: ${{ github.event.inputs.RELEASE == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: info-${{ github.run_number }}
-          path: artifacts/*.txt
+          path: .
+
+      - name: Generate Release Notes
+        run: |
+          echo "🔧 **TegarXLu GKI Release**" > release.txt
+          if [[ "${{ github.event.inputs.BUILD_NOROOT }}" == "true" ]]; then
+            echo "- 🧩 TegarXLu-GKI: Without root" >> release.txt
+          fi
+          if [[ "${{ github.event.inputs.BUILD_KSUNEXT }}" == "true" ]]; then
+            echo "- 🛡️ TegarXLu-GKI-KSUNext+SUSFS: With root KernelSU Next + SUSFS" >> release.txt
+          fi
+          if [[ "${{ github.event.inputs.BUILD_SUKISU }}" == "true" ]]; then
+            echo "- 🦊 TegarXLu-GKI-SukiSU+SUSFS: With root SukiSU + SUSFS" >> release.txt
+          fi
+          echo "" >> release.txt
+          echo "📝 **Notes:**" >> release.txt
+          echo "- Based on AOSP GKI 5.10" >> release.txt
+          echo "- SUSFS patch applied on SukiSU and KSUNext" >> release.txt
+          echo "- Can be used on GKI-based devices (Android 12-5.10)" >> release.txt
+          echo "" >> release.txt
+          echo "📄 <b>Full changelog</b>: [Here](${{ github.event.inputs.KERNEL_REPO }}/commits/${{ github.event.inputs.KERNEL_BRANCH }})" >> release.txt
+          echo "💬 Bug reports: [Support Group](https://t.me/rmdnsupport)" >> release.txt
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: TegarXLu-GKI-${{ needs.finalize.outputs.date }}
+          name: TegarXLu GKI - ${{ needs.finalize.outputs.date }}
+          body_path: release.txt
+          files: "**/*.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
