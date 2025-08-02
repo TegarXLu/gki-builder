@@ -10,8 +10,8 @@ TIMEZONE="Asia/Makassar"
 ANYKERNEL_REPO="https://github.com/TegarXLu/AnyKernel3"
 ANYKERNEL_BRANCH="main"
 # Kernel Source
-KERNEL_REPO="https://github.com/TegarXLu/android_kernel_common-5.10"
-KERNEL_BRANCH="android12-5.10"
+KERNEL_REPO="https://github.com/TegarXLu/kernel_common_gki-5.10"
+KERNEL_BRANCH="wkcw"
 KERNEL_DEFCONFIG="gki_defconfig"
 # Release repository
 GKI_RELEASES_REPO="https://github.com/TegarXLu/X669C-Release"
