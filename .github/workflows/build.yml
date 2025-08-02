@@ -75,6 +75,14 @@ jobs:
             echo "TRIGGER=workflow_dispatch" >> $GITHUB_ENV
           fi
 
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq bc cpio flex bison aptitude gh git python3 \
+                              tar perl wget curl lz4 zstd libarchive-tools aria2
+          sudo aptitude install -y libssl-dev
+          python3 -m pip install lxml
+
       - name: Enable swap with high priority and swappiness
         run: |
           sudo swapoff -a
@@ -94,28 +102,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }} # github token
           KSU: ${{ inputs.KSU }}
           KSU_SUSFS: ${{ inputs.KSU_SUSFS }}
-          KSU_MANUAL_HOOK: ${{ inputs.KSU_MANUAL_HOOK }}
-          BUILD_BOOTIMG: ${{ inputs.BUILD_BOOTIMG }}
-          LAST_BUILD: ${{ inputs.LAST_BUILD }}
-          TODO: ${{ inputs.TODO }}
-        run: |
-          export GIT_CLONE_PROTECTION_ACTIVE=false
-          chmod +x *.sh
-          ./build.sh
-
-      - name: Upload Artifacts (ZIP & IMG)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.BASE_NAME }}-${{ github.run_number }}
-          path: |
-            artifacts/*.zip
-            artifacts/*.img
-
-      - name: Upload Artifacts (Info File)
-        uses: actions/upload-artifact@v4
-        with:
-          name: info-${{ github.run_number }}
-          path: artifacts/*.txt
           KSU_MANUAL_HOOK: ${{ inputs.KSU_MANUAL_HOOK }}
           BUILD_BOOTIMG: ${{ inputs.BUILD_BOOTIMG }}
           LAST_BUILD: ${{ inputs.LAST_BUILD }}
