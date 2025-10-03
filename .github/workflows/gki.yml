@@ -22,6 +22,18 @@ on:
         required: false
         type: string
 
+on:
+  workflow_dispatch:
+    inputs:
+      KERNEL_REPO:
+        description: 'Link repo kernel'
+        required: true
+        default: 'https://github.com/marble-indonesia/kernel_xiaomi_sm8450'
+      KERNEL_BRANCH:
+        description: 'Branch kernel'
+        required: true
+        default: 'update-kernel'
+
 jobs:
   build-gki:
     runs-on: ubuntu-latest
@@ -86,17 +98,8 @@ jobs:
           echo "Creating folder for configuration: $CONFIG..."
           mkdir -p "$CONFIG"
           cd "$CONFIG"
-          echo "Initializing and syncing kernel source..."
-          FORMATTED_BRANCH="${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}"
-          $REPO init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-${FORMATTED_BRANCH} --repo-rev=v2.16
-          REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH})
-          DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
-          if grep -q deprecated <<< $REMOTE_BRANCH; then
-            echo "Found deprecated branch: $FORMATTED_BRANCH"
-            sed -i "s/\"${FORMATTED_BRANCH}\"/\"deprecated\/${FORMATTED_BRANCH}\"/g" $DEFAULT_MANIFEST_PATH
-          fi
-          $REPO --version
-          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+          echo "Initializing and syncing kernel source....
+          git clone --depth=1 ${{ github.event.inputs.KERNEL_REPO }} -b ${{ github.event.inputs.KERNEL_BRANCH }} kernel
 
       - name: Apply ptrace patch for 5.10 kernel
         run: |
