@@ -6,6 +6,14 @@ permissions:
 on:
   workflow_call:
     inputs:
+      KERNEL_REPO:
+        description: 'Link repo kernel'
+        required: true
+        default: 'https://github.com/marble-indonesia/kernel_xiaomi_sm8450'
+      KERNEL_BRANCH:
+        description: 'Branch kernel'
+        required: true
+        default: 'update-kernel'
       android_version:
         required: true
         type: string
@@ -21,18 +29,6 @@ on:
       revision:
         required: false
         type: string
-
-on:
-  workflow_dispatch:
-    inputs:
-      KERNEL_REPO:
-        description: 'Link repo kernel'
-        required: true
-        default: 'https://github.com/marble-indonesia/kernel_xiaomi_sm8450'
-      KERNEL_BRANCH:
-        description: 'Branch kernel'
-        required: true
-        default: 'update-kernel'
 
 jobs:
   build-gki:
