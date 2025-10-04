@@ -1,5 +1,17 @@
 name: Build Kernel - A12
 
+on:
+  workflow_dispatch:
+    inputs:
+      KERNEL_REPO:
+        description: 'Link repo kernel'
+        required: true
+        default: 'https://github.com/TegarXLu/Templar-Kernel-GKI-5.10'
+      KERNEL_BRANCH:
+        description: 'Branch kernel'
+        required: true
+        default: 'main'
+
 permissions:
   contents: write  # Allow writing to repository contents
   actions: write   # Allows triggering actions
