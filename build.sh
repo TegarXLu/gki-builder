@@ -73,14 +73,20 @@ git clone -q --depth=1 $KERNEL_REPO -b $KERNEL_BRANCH $KSRC
 
 cd $KSRC
 
-# --- FIX BOOTLOOP: PAKSA PAKAI CONFIG GARNET ---
-# Script aslinya memakai gki_defconfig (umum), kita timpa dengan garnet_GKI.config (spesifik)
-# agar driver hardware terbaca dan tidak bootloop.
+# --- FIX BOOTLOOP & BUILD ERROR ---
+# 1. Ganti config umum dengan config Garnet (Fix Bootloop)
+# 2. Matikan SSG IOSCHED (Fix Compile Error 'incompatible pointer')
 if [ "$KVER" == "5.10" ]; then
   log "Replacing generic gki_defconfig with Garnet specific config..."
   if [ -f "arch/arm64/configs/vendor/garnet_GKI.config" ]; then
     cp -f arch/arm64/configs/vendor/garnet_GKI.config arch/arm64/configs/gki_defconfig
     log "Success! Using Garnet Hardware Configuration."
+    
+    # Fix Build Error: Disable SSG IOSCHED
+    if grep -q "CONFIG_SSG_IOSCHED=y" arch/arm64/configs/gki_defconfig; then
+      log "Disabling broken SSG IOSCHED..."
+      sed -i 's/CONFIG_SSG_IOSCHED=y/# CONFIG_SSG_IOSCHED is not set/' arch/arm64/configs/gki_defconfig
+    fi
   else
     log "Warning: garnet_GKI.config not found, build might bootloop."
   fi
