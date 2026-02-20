@@ -85,10 +85,10 @@ fi
 # ----------------------------------------------------
 
 # --- PATCH 300HZ (INSTALLED AT THE BEGINNING) ---
-log "Applying 300Hz patch..."
-wget -qO Inject_300hz.sh https://raw.githubusercontent.com/Kingfinik98/gki-builder/refs/heads/6.x/inject_ksu/Inject_300hz.sh
-bash Inject_300hz.sh
-rm Inject_300hz.sh
+log "Applying 500Hz patch..."
+wget -qO Inject_500hz.sh https://raw.githubusercontent.com/Kingfinik98/gki-builder/refs/heads/6.x/inject_ksu/Inject_500hz.sh
+bash Inject_500hz.sh
+rm Inject_500hz.sh
 #--------------------------------------
 
 # --- ADD KSU INJECT SCRIPT ---
