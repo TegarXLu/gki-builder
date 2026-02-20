@@ -10,7 +10,7 @@ elif [ "$KVER" == "6.1" ]; then
   RELEASE="v0.1"
 fi
 
-KERNEL_NAME="VorteX-Quick"
+KERNEL_NAME="VX-Peler"
 USER="Dev-BoltX"
 HOST="BoltX"
 TIMEZONE="Asia/Jakarta"
@@ -22,23 +22,22 @@ if [ "$KVER" == "5.10" ]; then
 elif [ "$KVER" == "6.1" ]; then
   KERNEL_DEFCONFIG="gki_defconfig"
 else
-  KERNEL_DEFCONFIG="quartix_defconfig"
+  KERNEL_DEFCONFIG="gki_defconfig"
 fi
 
 if [ "$KVER" == "6.6" ]; then
-  KERNEL_REPO="https://github.com/linastorvaldz/kernel-android15-6.6"
+  KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-6.6.git"
   ANYKERNEL_BRANCH="master"
-  KERNEL_BRANCH="android15-6.6-2025-01"
+  KERNEL_BRANCH="android15-6.6-staging"
 elif [ "$KVER" == "6.1" ]; then
   KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-6.1.git"
   ANYKERNEL_BRANCH="master"
   KERNEL_BRANCH="android14-6.1-staging"
 elif [ "$KVER" == "5.10" ]; then
-  KERNEL_REPO="https://github.com/zylhdrXP/android_kernel_xiaomi_sm7435.git"
+  KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-5.10.git"
   ANYKERNEL_BRANCH="master"
-  KERNEL_BRANCH="lineage-23.2-staging"
+  KERNEL_BRANCH="android12-5.10-staging"
 fi
-
 DEFCONFIG_TO_MERGE=""
 GKI_RELEASES_REPO="https://github.com/Kingfinik98/gki-builder"
 #Change the clang by removing the (#) sign then apply
@@ -47,8 +46,8 @@ GKI_RELEASES_REPO="https://github.com/Kingfinik98/gki-builder"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/62cdcefa89e31af2d72c366e8b5ef8db84caea62/clang-r547379.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/105aba85d97a53d364585ca755752dae054b49e8/clang-r584948b.tar.gz"
-#CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
-CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948b.tar.gz"
+CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
+#CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948b.tar.gz"
 #CLANG_URL="https://github.com/linastorvaldz/gki-builder/releases/download/clang-r487747c/clang-r487747c.tar.gz"
 #CLANG_URL="$(./clang.sh slim)"
 CLANG_BRANCH=""
@@ -72,47 +71,25 @@ log "Cloning kernel source from $(simplify_gh_url "$KERNEL_REPO")"
 git clone -q --depth=1 $KERNEL_REPO -b $KERNEL_BRANCH $KSRC
 
 cd $KSRC
-
-# --- FIX BOOTLOOP & BUILD ERROR ---
-# 1. Ganti config umum dengan config Garnet (Fix Bootloop)
-# 2. Matikan SSG IOSCHED (Fix Compile Error 'incompatible pointer')
-if [ "$KVER" == "5.10" ]; then
-  log "Replacing generic gki_defconfig with Garnet specific config..."
-  if [ -f "arch/arm64/configs/vendor/garnet_GKI.config" ]; then
-    cp -f arch/arm64/configs/vendor/garnet_GKI.config arch/arm64/configs/gki_defconfig
-    log "Success! Using Garnet Hardware Configuration."
-    
-    # Fix Build Error: Disable SSG IOSCHED
-    if grep -q "CONFIG_SSG_IOSCHED=y" arch/arm64/configs/gki_defconfig; then
-      log "Disabling broken SSG IOSCHED..."
-      sed -i 's/CONFIG_SSG_IOSCHED=y/# CONFIG_SSG_IOSCHED is not set/' arch/arm64/configs/gki_defconfig
-    fi
-  else
-    log "Warning: garnet_GKI.config not found, build might bootloop."
-  fi
-fi
-# ------------------------------------------------
-
-# FIX: Ambil versi langsung dari Makefile untuk menghindari error "cc-wrapper"
-LINUX_VERSION=$(grep -E "^VERSION|^PATCHLEVEL|^SUBLEVEL" Makefile | tr -d 'A-Z =' | tr '\n' '.' | sed 's/\.$//')
+LINUX_VERSION=$(make kernelversion)
 LINUX_VERSION_CODE=${LINUX_VERSION//./}
 DEFCONFIG_FILE=$(find ./arch/arm64/configs -name "$KERNEL_DEFCONFIG")
 
 # --- PATCH INFINIX GT 20 PRO CAM (GKI 5.10 ONLY) ---
-#if [ "$KVER" == "5.10" ]; then
-  #log "📸 Applying Infinix GT 20 Pro Camera Fix..."
-  #curl -L "https://github.com/ramabondanp/android_kernel_common-5.10/commit/4fe04b60009e.patch" -o infinix_cam.patch
-  #patch -p1 < infinix_cam.patch || log "Camera patch already embedded."
-  #rm infinix_cam.patch
-#fi
+if [ "$KVER" == "5.10" ]; then
+  log "📸 Applying Infinix GT 20 Pro Camera Fix..."
+  curl -L "https://github.com/ramabondanp/android_kernel_common-5.10/commit/4fe04b60009e.patch" -o infinix_cam.patch
+  patch -p1 < infinix_cam.patch || log "Camera patch already embedded."
+  rm infinix_cam.patch
+fi
 # ----------------------------------------------------
 
 # --- PATCH 300HZ (INSTALLED AT THE BEGINNING) ---
-#log "Applying 300Hz patch..."
-#wget -qO Inject_300hz.sh https://raw.githubusercontent.com/Kingfinik98/gki-builder/refs/heads/6.x/inject_ksu/Inject_300hz.sh
-#bash Inject_300hz.sh
-#rm Inject_300hz.sh
-# --------------------------------------
+log "Applying 300Hz patch..."
+wget -qO Inject_300hz.sh https://raw.githubusercontent.com/Kingfinik98/gki-builder/refs/heads/6.x/inject_ksu/Inject_300hz.sh
+bash Inject_300hz.sh
+rm Inject_300hz.sh
+#--------------------------------------
 
 # --- ADD KSU INJECT SCRIPT ---
 log "Injecting custom KSU & SuSFS configs from GitHub..."
@@ -428,7 +405,6 @@ fi
 cd anykernel
 log "Zipping anykernel..."
 cp $KERNEL_IMAGE .
-
 zip -r9 $WORKDIR/$AK3_ZIP_NAME ./*
 cd $OLDPWD
 
