@@ -47,7 +47,7 @@ GKI_RELEASES_REPO="https://github.com/Kingfinik98/gki-builder"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/62cdcefa89e31af2d72c366e8b5ef8db84caea62/clang-r547379.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/105aba85d97a53d364585ca755752dae054b49e8/clang-r584948b.tar.gz"
 CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
-#CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948b.tar.gz"
+#CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948.tar.gz"
 #CLANG_URL="https://github.com/linastorvaldz/gki-builder/releases/download/clang-r487747c/clang-r487747c.tar.gz"
 #CLANG_URL="$(./clang.sh slim)"
 CLANG_BRANCH=""
@@ -84,7 +84,7 @@ if [ "$KVER" == "5.10" ]; then
 fi
 # ----------------------------------------------------
 
-# --- PATCH 300HZ (INSTALLED AT THE BEGINNING) ---
+# --- PATCH 500HZ (INSTALLED AT THE BEGINNING) ---
 log "Applying 500Hz patch..."
 wget -qO Inject_500hz.sh https://raw.githubusercontent.com/Kingfinik98/gki-builder/refs/heads/6.x/inject_ksu/Inject_500hz.sh
 bash Inject_500hz.sh
@@ -357,22 +357,26 @@ fi
 
 # --- PATCH KPM SECTION ---
 log "Applying KPM Patch..."
-# Go to the kernel output directory Image
-cd $OUTDIR/arch/arm64/boot
-if [ -f Image ]; then
-  echo "✅ Image found, applying KPM patch..."
-  curl -LSs "https://github.com/Kingfinik98/SukiSU_patch/raw/refs/heads/main/kpm/patch_linux" -o patch
-  chmod 777 patch
-  ./patch
-  if [ -f oImage ]; then
-    mv -f oImage Image
-    ls -lh Image
-    log "✅ KPM Patch applied successfully."
+if [ "$KSU" == "resukisu" ]; then
+  # Go to the kernel output directory Image
+  cd $OUTDIR/arch/arm64/boot
+  if [ -f Image ]; then
+    echo "✅ Image found, applying KPM patch..."
+    curl -LSs "https://github.com/Kingfinik98/SukiSU_patch/raw/refs/heads/main/kpm/patch_linux" -o patch
+    chmod 777 patch
+    ./patch
+    if [ -f oImage ]; then
+      mv -f oImage Image
+      ls -lh Image
+      log "✅ KPM Patch applied successfully."
+    else
+      log "Error: oImage not found!"
+    fi
   else
-    log "Error: oImage not found!"
+    log "Warning: Image file not found in $PWD. Skipping KPM patch."
   fi
 else
-  log "Warning: Image file not found in $PWD. Skipping KPM patch."
+  log "Skipping KPM patch (Not ReSukiSU variant)."
 fi
 # Return to the initial working directory (Post-compiling steps))
 cd $WORKDIR
