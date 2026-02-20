@@ -10,9 +10,9 @@ elif [ "$KVER" == "6.1" ]; then
   RELEASE="v0.1"
 fi
 
-KERNEL_NAME="VX-Peler"
-USER="Dev-BoltX"
-HOST="BoltX"
+KERNEL_NAME="VorteX-Quix"
+USER="VorteX"
+HOST="VorteX"
 TIMEZONE="Asia/Jakarta"
 ANYKERNEL_REPO="https://github.com/Kingfinik98/AnyKernel3"
 
@@ -246,7 +246,6 @@ if susfs_included; then
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c4) -eq 6658 ]; then
       patch -p1 < $KERNEL_PATCHES/susfs/task_mmu.c_fix-k6.6.58.patch
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c2) -eq 61 ]; then
-      # Ini patch yang memperbaiki GKI 6.1
       patch -p1 < $KERNEL_PATCHES/susfs/fs_proc_base.c-fix-k6.1.patch
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c3) -eq 510 ]; then
       patch -p1 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch
