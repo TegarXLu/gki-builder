@@ -250,9 +250,21 @@ if susfs_included; then
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c3) -eq 510 ]; then
       patch -p1 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch
     fi
+
+    # CRC Fix Logic
     if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
-      patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch
+      if [ "$KSU" == "yes" ]; then
+        # KernelSU Next: Use the provided patch
+        log "Applying statfs CRC fix patch (KernelSU Next)..."
+        patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch
+      elif [ "$KSU" == "resukisu" ] && [ "$KVER" == "6.1" ]; then
+        # ReSukiSU 6.1: Skip patch, apply manual fix
+        log "Applying manual statfs CRC fix for ReSukiSU GKI 6.1..."
+        sed -i '/#include <linux\/susfs_def.h>/i #ifndef __GENKSYMS__' fs/statfs.c
+        sed -i '/#include "mount.h"/a #endif' fs/statfs.c
+      fi
     fi
+
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     config --enable CONFIG_KSU_SUSFS
   else
