@@ -195,6 +195,7 @@ elif [ "$KSU" == "vortexsu" ]; then
   # Run the VorteXSU setup script (using branch main)
   log "Running VorteXSU setup from main branch..."
   curl -LSs "https://raw.githubusercontent.com/Kingfinik98/VortexSU/refs/heads/main/kernel/setup.sh" | bash -s main
+  
   # PATCH SUSFS for GKI 5.10
   if [ "$KVER" == "5.10" ]; then
     log "Applying SUSFS patches for GKI 5.10 (VorteXSU Method)..."
@@ -214,19 +215,26 @@ elif [ "$KSU" == "vortexsu" ]; then
     log "[✓] VorteXSU & SUSFS patched for $KVER."
   else
     # Untuk 6.1 dan 6.6, hanya enable config-nya.
-    # VorteXSU 6.1 uses SUSFS_INLINE_HOOK (detected in log), so standard patching is NOT needed.
-    # We only enable the config flags here.
+    # The physical patching is done in the 'Standard SUSFS Logic' block below.
     config --enable CONFIG_KSU_SUSFS
-    log "SUSFS config enabled for $KVER. VorteXSU uses inline hooks, standard patching skipped."
+    log "SUSFS config enabled for $KVER. Applying patches in Standard block..."
+    
+    # --- FIXED: Apply duplicate fix for VorteXSU 6.1/6.6 ---
+    # VorteXSU uses KernelSU-Next base, so it needs the same supercalls.c fix to prevent linking errors.
+    if [ -f "drivers/kernelsu/supercalls.c" ]; then
+      log "Applying fix for undefined SUSFS symbols (VorteXSU)..."
+      sed -i 's/#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME/#if 0 \/\* CONFIG_KSU_SUSFS_SPOOF_UNAME Disabled to fix build \*\//' drivers/kernelsu/supercalls.c
+      log "SUSFS symbol fix applied for VorteXSU."
+    fi
+    # --------------------------------------------------------
   fi
 fi
 
-# SUSFS (Standard Logic for KernelSU yes & VorteXSU 6.6 ONLY)
-# Note: VorteXSU 6.1 is EXCLUDED here because it uses SUSFS_INLINE_HOOK.
+# SUSFS (Standard Logic for KernelSU yes & VorteXSU 6.1/6.6)
 if susfs_included; then
   # Check: Run the Standard patch if it is NOT VorteXSU (Standard KernelSU)
-  # OR if it is VorteXSU but its version is 6.6 (excluding 6.1).
-  if [ "$KSU" != "vortexsu" ] || ([ "$KSU" == "vortexsu" ] && [ "$KVER" == "6.6" ]); then
+# OR if it is VorteXSU but its version is 6.1 or 6.6.
+  if [ "$KSU" != "vortexsu" ] || ([ "$KSU" == "vortexsu" ] && ([ "$KVER" == "6.1" ] || [ "$KVER" == "6.6" ])); then
     # Kernel-side
     log "Applying kernel-side susfs patches (Standard Method)"
     SUSFS_DIR="$WORKDIR/susfs"
@@ -255,12 +263,11 @@ if susfs_included; then
     
     # --- FIXED: Special handling for VorteXSU GKI 6.1 ONLY ---
     # Logic: If variant is VorteXSU and version is 6.1, use sed. Else, use patch file.
-    # Since VorteXSU 6.1 is now excluded from this block entirely, this section below
-    # will only run for standard KSU or VorteXSU 6.6.
     if [ "$KVER" == "6.1" ] && [ "$KSU" == "vortexsu" ]; then
-      # This block is now unreachable for VorteXSU 6.1, but kept for safety logic.
       log "Fixing statfs CRC mismatch manually via sed (VorteXSU 6.1)..."
+      # Add #ifndef __GENKSYMS__ after the SUSFS mount check
       sed -i '/#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT/a #ifndef __GENKSYMS__' fs/statfs.c
+      # Add closing #endif after mount.h include
       sed -i '/#include "mount.h"/a #endif' fs/statfs.c
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
       # Standard patch for 6.6 or 6.1 (non-VorteXSU)
@@ -271,7 +278,7 @@ if susfs_included; then
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     config --enable CONFIG_KSU_SUSFS
   else
-    #  VorteXSU 5.10 & 6.1, SUSFS is enabled/handled in the top block or via hooks
+    #  VorteXSU 5.10, SUSFS is enabled in the top block
     log "Skipping standard SUSFS patch (Handled by VorteXSU or logic elsewhere)."
   fi
 else
