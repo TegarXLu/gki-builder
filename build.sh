@@ -10,9 +10,9 @@ elif [ "$KVER" == "6.1" ]; then
   RELEASE="v0.1"
 fi
 
-KERNEL_NAME="VorteX-Quix"
-USER="VorteX"
-HOST="VorteX"
+KERNEL_NAME="VorteX-Quick"
+USER="Dev-BoltX"
+HOST="BoltX"
 TIMEZONE="Asia/Jakarta"
 ANYKERNEL_REPO="https://github.com/Kingfinik98/AnyKernel3"
 
@@ -22,13 +22,13 @@ if [ "$KVER" == "5.10" ]; then
 elif [ "$KVER" == "6.1" ]; then
   KERNEL_DEFCONFIG="gki_defconfig"
 else
-  KERNEL_DEFCONFIG="gki_defconfig"
+  KERNEL_DEFCONFIG="quartix_defconfig"
 fi
 
 if [ "$KVER" == "6.6" ]; then
-  KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-6.6.git"
+  KERNEL_REPO="https://github.com/linastorvaldz/kernel-android15-6.6"
   ANYKERNEL_BRANCH="master"
-  KERNEL_BRANCH="android15-6.6-staging"
+  KERNEL_BRANCH="android15-6.6-2025-01"
 elif [ "$KVER" == "6.1" ]; then
   KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-6.1.git"
   ANYKERNEL_BRANCH="master"
@@ -46,8 +46,8 @@ GKI_RELEASES_REPO="https://github.com/Kingfinik98/gki-builder"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/62cdcefa89e31af2d72c366e8b5ef8db84caea62/clang-r547379.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/105aba85d97a53d364585ca755752dae054b49e8/clang-r584948b.tar.gz"
-CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
-#CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948b.tar.gz"
+#CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
+CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948b.tar.gz"
 #CLANG_URL="https://github.com/linastorvaldz/gki-builder/releases/download/clang-r487747c/clang-r487747c.tar.gz"
 #CLANG_URL="$(./clang.sh slim)"
 CLANG_BRANCH=""
@@ -84,12 +84,12 @@ if [ "$KVER" == "5.10" ]; then
 fi
 # ----------------------------------------------------
 
-# --- PATCH 500HZ (INSTALLED AT THE BEGINNING) ---
-log "Applying 500Hz patch..."
-wget -qO Inject_500hz.sh https://raw.githubusercontent.com/Kingfinik98/gki-builder/refs/heads/6.x/inject_ksu/Inject_500hz.sh
-bash Inject_500hz.sh
-rm Inject_500hz.sh
-#--------------------------------------
+# --- PATCH 300HZ (INSTALLED AT THE BEGINNING) ---
+#log "Applying 300Hz patch..."
+#wget -qO Inject_300hz.sh https://raw.githubusercontent.com/Kingfinik98/gki-builder/refs/heads/6.x/inject_ksu/Inject_300hz.sh
+#bash Inject_300hz.sh
+#rm Inject_300hz.sh
+# --------------------------------------
 
 # --- ADD KSU INJECT SCRIPT ---
 log "Injecting custom KSU & SuSFS configs from GitHub..."
@@ -105,7 +105,7 @@ cd $WORKDIR
 log "Setting Kernel variant..."
 case "$KSU" in
   "yes") VARIANT="KSU" ;;
-  "Supported Unofficial Manager") VARIANT="VorteXSU" ;; # Changed ReSukiSU to VorteXSU
+  "Supported Unofficial Manager") VARIANT="ReSukiSU" ;; # Added ReSukiSU Type
   "no") VARIANT="VNL" ;;
 esac
 susfs_included && VARIANT+="+SuSFS"
@@ -188,16 +188,16 @@ if ksu_included; then
     sed -i 's/#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME/#if 0 \/\* CONFIG_KSU_SUSFS_SPOOF_UNAME Disabled to fix build \*\//' drivers/kernelsu/supercalls.c
     log "SUSFS symbol fix applied for KernelSU-Next."
 
-# --- VorteXSU Setup Block (Separated Logic) ---
-elif [ "$KSU" == "vortexsu" ]; then
-  log "Setting up VorteXSU for KVER $KVER..."
+# --- ReSukiSU Setup Block (Separated Logic) ---
+elif [ "$KSU" == "resukisu" ]; then
+  log "Setting up ReSukiSU for KVER $KVER..."
   
-  # Run the VorteXSU setup script (using branch main)
-  log "Running VorteXSU setup from main branch..."
-  curl -LSs "https://raw.githubusercontent.com/Kingfinik98/VortexSU/refs/heads/main/kernel/setup.sh" | bash -s main
+  # Run the ReSukiSU setup script (using branch main)
+  log "Running ReSukiSU setup from main branch..."
+  curl -LSs "https://raw.githubusercontent.com/Kingfinik98/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
   # PATCH SUSFS for GKI 5.10
   if [ "$KVER" == "5.10" ]; then
-    log "Applying SUSFS patches for GKI 5.10 (VorteXSU Method)..."
+    log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."
     SUSFS_BRANCH="gki-android12-5.10"
     git clone https://gitlab.com/simonpunk/susfs4ksu/ -b $SUSFS_BRANCH sus
     rm -rf sus/.git
@@ -211,7 +211,7 @@ elif [ "$KSU" == "vortexsu" ]; then
     config --enable CONFIG_KPM
     config --enable CONFIG_KSU_MULTI_MANAGER_SUPPORT
     config --enable CONFIG_KSU_SUSFS
-    log "[✓] VorteXSU & SUSFS patched for $KVER."
+    log "[✓] ReSukiSU & SUSFS patched for $KVER."
   else
     # Untuk 6.1 dan 6.6,hanya enable config-nya.
     # The physical patching is done in the 'Standard SUSFS Logic' block below.
@@ -220,11 +220,11 @@ elif [ "$KSU" == "vortexsu" ]; then
   fi
 fi
 
-# SUSFS (Standard Logic for KernelSU yes & VorteXSU 6.1/6.6)
+# SUSFS (Standard Logic for KernelSU yes & ReSukiSU 6.1/6.6)
 if susfs_included; then
-  # Check: Run the Standard patch if it is NOT VorteXSU (Standard KernelSU)
-# OR if it is VorteXSU but its version is 6.1 or 6.6.
-  if [ "$KSU" != "vortexsu" ] || ([ "$KSU" == "vortexsu" ] && ([ "$KVER" == "6.1" ] || [ "$KVER" == "6.6" ])); then
+  # Check: Run the Standard patch if it is NOT ReSukiSU (Standard KernelSU)
+# OR if it is ReSukiSU but its version is 6.1 or 6.6.
+  if [ "$KSU" != "resukisu" ] || ([ "$KSU" == "resukisu" ] && ([ "$KVER" == "6.1" ] || [ "$KVER" == "6.6" ])); then
     # Kernel-side
     log "Applying kernel-side susfs patches (Standard Method)"
     SUSFS_DIR="$WORKDIR/susfs"
@@ -246,6 +246,7 @@ if susfs_included; then
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c4) -eq 6658 ]; then
       patch -p1 < $KERNEL_PATCHES/susfs/task_mmu.c_fix-k6.6.58.patch
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c2) -eq 61 ]; then
+      # Ini patch yang memperbaiki GKI 6.1
       patch -p1 < $KERNEL_PATCHES/susfs/fs_proc_base.c-fix-k6.1.patch
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c3) -eq 510 ]; then
       patch -p1 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch
@@ -256,8 +257,8 @@ if susfs_included; then
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     config --enable CONFIG_KSU_SUSFS
   else
-    #  VorteXSU 5.10, SUSFS is enabled in the top block
-    log "Skipping standard SUSFS patch (Handled by VorteXSU or logic elsewhere)."
+    #  ReSukiSU 5.10, SUSFS is enabled in the top block
+    log "Skipping standard SUSFS patch (Handled by ReSukiSU or logic elsewhere)."
   fi
 else
   config --disable CONFIG_KSU_SUSFS
@@ -356,26 +357,22 @@ fi
 
 # --- PATCH KPM SECTION ---
 log "Applying KPM Patch..."
-if [ "$KSU" == "vortexsu" ]; then
-  # Go to the kernel output directory Image
-  cd $OUTDIR/arch/arm64/boot
-  if [ -f Image ]; then
-    echo "✅ Image found, applying KPM patch..."
-    curl -LSs "https://github.com/Kingfinik98/SukiSU_patch/raw/refs/heads/main/kpm/patch_linux" -o patch
-    chmod 777 patch
-    ./patch
-    if [ -f oImage ]; then
-      mv -f oImage Image
-      ls -lh Image
-      log "✅ KPM Patch applied successfully."
-    else
-      log "Error: oImage not found!"
-    fi
+# Go to the kernel output directory Image
+cd $OUTDIR/arch/arm64/boot
+if [ -f Image ]; then
+  echo "✅ Image found, applying KPM patch..."
+  curl -LSs "https://github.com/Kingfinik98/SukiSU_patch/raw/refs/heads/main/kpm/patch_linux" -o patch
+  chmod 777 patch
+  ./patch
+  if [ -f oImage ]; then
+    mv -f oImage Image
+    ls -lh Image
+    log "✅ KPM Patch applied successfully."
   else
-    log "Warning: Image file not found in $PWD. Skipping KPM patch."
+    log "Error: oImage not found!"
   fi
 else
-  log "Skipping KPM patch (Not VorteXSU variant)."
+  log "Warning: Image file not found in $PWD. Skipping KPM patch."
 fi
 # Return to the initial working directory (Post-compiling steps))
 cd $WORKDIR
