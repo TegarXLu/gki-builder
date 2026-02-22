@@ -105,7 +105,7 @@ cd $WORKDIR
 log "Setting Kernel variant..."
 case "$KSU" in
   "yes") VARIANT="KSU" ;;
-  "Supported Unofficial Manager") VARIANT="ReSukiSU" ;; # Added ReSukiSU Type
+  "Supported Unofficial Manager") VARIANT="VorteXSU" ;; # Changed ReSukiSU to VorteXSU
   "no") VARIANT="VNL" ;;
 esac
 susfs_included && VARIANT+="+SuSFS"
@@ -188,16 +188,16 @@ if ksu_included; then
     sed -i 's/#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME/#if 0 \/\* CONFIG_KSU_SUSFS_SPOOF_UNAME Disabled to fix build \*\//' drivers/kernelsu/supercalls.c
     log "SUSFS symbol fix applied for KernelSU-Next."
 
-# --- ReSukiSU Setup Block (Separated Logic) ---
-elif [ "$KSU" == "resukisu" ]; then
-  log "Setting up ReSukiSU for KVER $KVER..."
+# --- VorteXSU Setup Block (Separated Logic) ---
+elif [ "$KSU" == "vortexsu" ]; then
+  log "Setting up VorteXSU for KVER $KVER..."
   
-  # Run the ReSukiSU setup script (using branch main)
-  log "Running ReSukiSU setup from main branch..."
+  # Run the VorteXSU setup script (using branch main)
+  log "Running VorteXSU setup from main branch..."
   curl -LSs "https://raw.githubusercontent.com/Kingfinik98/VortexSU/refs/heads/main/kernel/setup.sh" | bash -s main
   # PATCH SUSFS for GKI 5.10
   if [ "$KVER" == "5.10" ]; then
-    log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."
+    log "Applying SUSFS patches for GKI 5.10 (VorteXSU Method)..."
     SUSFS_BRANCH="gki-android12-5.10"
     git clone https://gitlab.com/simonpunk/susfs4ksu/ -b $SUSFS_BRANCH sus
     rm -rf sus/.git
@@ -211,7 +211,7 @@ elif [ "$KSU" == "resukisu" ]; then
     config --enable CONFIG_KPM
     config --enable CONFIG_KSU_MULTI_MANAGER_SUPPORT
     config --enable CONFIG_KSU_SUSFS
-    log "[✓] ReSukiSU & SUSFS patched for $KVER."
+    log "[✓] VorteXSU & SUSFS patched for $KVER."
   else
     # Untuk 6.1 dan 6.6,hanya enable config-nya.
     # The physical patching is done in the 'Standard SUSFS Logic' block below.
@@ -220,11 +220,11 @@ elif [ "$KSU" == "resukisu" ]; then
   fi
 fi
 
-# SUSFS (Standard Logic for KernelSU yes & ReSukiSU 6.1/6.6)
+# SUSFS (Standard Logic for KernelSU yes & VorteXSU 6.1/6.6)
 if susfs_included; then
-  # Check: Run the Standard patch if it is NOT ReSukiSU (Standard KernelSU)
-# OR if it is ReSukiSU but its version is 6.1 or 6.6.
-  if [ "$KSU" != "resukisu" ] || ([ "$KSU" == "resukisu" ] && ([ "$KVER" == "6.1" ] || [ "$KVER" == "6.6" ])); then
+  # Check: Run the Standard patch if it is NOT VorteXSU (Standard KernelSU)
+# OR if it is VorteXSU but its version is 6.1 or 6.6.
+  if [ "$KSU" != "vortexsu" ] || ([ "$KSU" == "vortexsu" ] && ([ "$KVER" == "6.1" ] || [ "$KVER" == "6.6" ])); then
     # Kernel-side
     log "Applying kernel-side susfs patches (Standard Method)"
     SUSFS_DIR="$WORKDIR/susfs"
@@ -256,8 +256,8 @@ if susfs_included; then
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     config --enable CONFIG_KSU_SUSFS
   else
-    #  ReSukiSU 5.10, SUSFS is enabled in the top block
-    log "Skipping standard SUSFS patch (Handled by ReSukiSU or logic elsewhere)."
+    #  VorteXSU 5.10, SUSFS is enabled in the top block
+    log "Skipping standard SUSFS patch (Handled by VorteXSU or logic elsewhere)."
   fi
 else
   config --disable CONFIG_KSU_SUSFS
@@ -356,7 +356,7 @@ fi
 
 # --- PATCH KPM SECTION ---
 log "Applying KPM Patch..."
-if [ "$KSU" == "resukisu" ]; then
+if [ "$KSU" == "vortexsu" ]; then
   # Go to the kernel output directory Image
   cd $OUTDIR/arch/arm64/boot
   if [ -f Image ]; then
@@ -375,7 +375,7 @@ if [ "$KSU" == "resukisu" ]; then
     log "Warning: Image file not found in $PWD. Skipping KPM patch."
   fi
 else
-  log "Skipping KPM patch (Not ReSukiSU variant)."
+  log "Skipping KPM patch (Not VorteXSU variant)."
 fi
 # Return to the initial working directory (Post-compiling steps))
 cd $WORKDIR
