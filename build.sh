@@ -195,7 +195,6 @@ elif [ "$KSU" == "vortexsu" ]; then
   # Run the VorteXSU setup script (using branch main)
   log "Running VorteXSU setup from main branch..."
   curl -LSs "https://raw.githubusercontent.com/Kingfinik98/VortexSU/refs/heads/main/kernel/setup.sh" | bash -s main
-  
   # PATCH SUSFS for GKI 5.10
   if [ "$KVER" == "5.10" ]; then
     log "Applying SUSFS patches for GKI 5.10 (VorteXSU Method)..."
@@ -214,19 +213,10 @@ elif [ "$KSU" == "vortexsu" ]; then
     config --enable CONFIG_KSU_SUSFS
     log "[✓] VorteXSU & SUSFS patched for $KVER."
   else
-    # Untuk 6.1 dan 6.6, hanya enable config-nya.
+    # Untuk 6.1 dan 6.6,hanya enable config-nya.
     # The physical patching is done in the 'Standard SUSFS Logic' block below.
     config --enable CONFIG_KSU_SUSFS
     log "SUSFS config enabled for $KVER. Applying patches in Standard block..."
-    
-    # --- FIXED: Apply duplicate fix for VorteXSU 6.1/6.6 ---
-    # VorteXSU uses KernelSU-Next base, so it needs the same supercalls.c fix to prevent linking errors.
-    if [ -f "drivers/kernelsu/supercalls.c" ]; then
-      log "Applying fix for undefined SUSFS symbols (VorteXSU)..."
-      sed -i 's/#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME/#if 0 \/\* CONFIG_KSU_SUSFS_SPOOF_UNAME Disabled to fix build \*\//' drivers/kernelsu/supercalls.c
-      log "SUSFS symbol fix applied for VorteXSU."
-    fi
-    # --------------------------------------------------------
   fi
 fi
 
@@ -261,16 +251,11 @@ if susfs_included; then
       patch -p1 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch
     fi
     
-    # --- FIXED: Special handling for VorteXSU GKI 6.1 ONLY ---
-    # Logic: If variant is VorteXSU and version is 6.1, use sed. Else, use patch file.
-    if [ "$KVER" == "6.1" ] && [ "$KSU" == "vortexsu" ]; then
-      log "Fixing statfs CRC mismatch manually via sed (VorteXSU 6.1)..."
-      # Add #ifndef __GENKSYMS__ after the SUSFS mount check
-      sed -i '/#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT/a #ifndef __GENKSYMS__' fs/statfs.c
-      # Add closing #endif after mount.h include
-      sed -i '/#include "mount.h"/a #endif' fs/statfs.c
-    elif [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
-      # Standard patch for 6.6 or 6.1 (non-VorteXSU)
+    # --- FIXED: Special handling for GKI 6.x CRC Mismatch ---
+    # Removed the brittle 'sed' logic for VorteXSU 6.1 to let it use the stable patch file.
+    # This fixes the "Error 2" build failure caused by CRC mismatch in fs/statfs.c.
+    if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
+      log "Applying statfs CRC fix for GKI 6.x..."
       patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch || true
     fi
     # --------------------------------------------------------
