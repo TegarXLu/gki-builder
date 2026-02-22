@@ -223,8 +223,9 @@ fi
 # SUSFS (Standard Logic for KernelSU yes & VorteXSU 6.1/6.6)
 if susfs_included; then
   # Check: Run the Standard patch if it is NOT VorteXSU (Standard KernelSU)
-# OR if it is VorteXSU but its version is 6.1 or 6.6.
-  if [ "$KSU" != "vortexsu" ] || ([ "$KSU" == "vortexsu" ] && ([ "$KVER" == "6.1" ] || [ "$KVER" == "6.6" ])); then
+  # OR if it is VorteXSU but its version is 6.6 (Assuming 6.6 needs standard patch).
+  # VorteXSU 6.1 is EXCLUDED here to prevent double patching.
+  if [ "$KSU" != "vortexsu" ] || ([ "$KSU" == "vortexsu" ] && [ "$KVER" == "6.6" ]); then
     # Kernel-side
     log "Applying kernel-side susfs patches (Standard Method)"
     SUSFS_DIR="$WORKDIR/susfs"
@@ -251,22 +252,34 @@ if susfs_included; then
       patch -p1 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch
     fi
     
-    # --- FIXED: Special handling for VorteXSU GKI 6.1 ONLY ---
-    # Logic: If variant is VorteXSU and version is 6.1, use sed. Else, use patch file.
-    if [ "$KVER" == "6.1" ] && [ "$KSU" == "vortexsu" ]; then
-      log "Fixing statfs CRC mismatch manually via sed (VorteXSU 6.1)..."
-      # Add #ifndef __GENKSYMS__ after the SUSFS mount check
-      sed -i '/#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT/a #ifndef __GENKSYMS__' fs/statfs.c
-      # Add closing #endif after mount.h include
-      sed -i '/#include "mount.h"/a #endif' fs/statfs.c
-    elif [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
-      # Standard patch for 6.6 or 6.1 (non-VorteXSU)
+    if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
       patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch || true
     fi
-    # --------------------------------------------------------
     
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     config --enable CONFIG_KSU_SUSFS
+
+  # --- SPECIAL HANDLING FOR VorteXSU 6.1 ONLY ---
+  elif [ "$KSU" == "vortexsu" ] && [ "$KVER" == "6.1" ]; then
+    log "VorteXSU 6.1 detected: Skipping standard SUSFS patch to avoid conflict."
+    log "Applying manual CRC fix for VorteXSU 6.1..."
+    
+    # VorteXSU setup already patched SUSFS. We only need the GKI CRC fix.
+    # Manual sed to wrap SUSFS includes in fs/statfs.c to hide from genksyms.
+    if [ -f "fs/statfs.c" ]; then
+        # Add #ifndef __GENKSYMS__ after the SUSFS mount check
+        sed -i '/#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT/a #ifndef __GENKSYMS__' fs/statfs.c
+        # Add closing #endif after susfs_def.h include (standard SUSFS pattern)
+        sed -i '/#include <linux\/susfs_def.h>/a #endif' fs/statfs.c
+        log "CRC fix applied via sed."
+    fi
+
+    # Get SUSFS version
+    if [ -f "./include/linux/susfs.h" ]; then
+       SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
+    fi
+  # ------------------------------------------------
+  
   else
     #  VorteXSU 5.10, SUSFS is enabled in the top block
     log "Skipping standard SUSFS patch (Handled by VorteXSU or logic elsewhere)."
