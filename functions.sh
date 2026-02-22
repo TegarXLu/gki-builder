@@ -56,7 +56,7 @@ ksu_included() {
   # LOGIC FIX:
   # Cek variabel input $KSU secara langsung.
   # 1. "yes" (Standard KSU) -> Return True (Masuk blok Standard).
-  # 2. "resukisu" -> Return False (Lewati Standard, masuk blok ReSukiSU).
+  # 2. "vortexsu" -> Return False (Lewati Standard, masuk blok VorteXSU).
   # 3. "no" (Vanilla) -> Return False (Tidak ada KSU).
   [ "$KSU" == "yes" ]
   return $?
@@ -67,7 +67,7 @@ ksu_included() {
 susfs_included() {
   # Return True jika input KSU_SUSFS adalah "true"
   # Ini digunakan oleh build.sh untuk memutuskan apakah akan clone SUSFS (Standard/Manual Fix)
-  # atau membiarkan ReSukiSU menangani patchingnya sendiri.
+  # atau membiarkan VorteXSU menangani patchingnya sendiri.
   [ "$KSU_SUSFS" == "true" ]
   return $?
 }
