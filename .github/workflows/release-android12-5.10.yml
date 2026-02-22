@@ -12,7 +12,7 @@ on:
           - 'VNL'
           - 'KSU'
           - 'KSU SuSFS'
-          - 'ReSukiSU'
+          - 'VorteXSU'
 
 jobs:
   build:
@@ -20,8 +20,8 @@ jobs:
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
-      KSU: ${{ github.event.inputs.variant == 'ReSukiSU' && 'resukisu' || (github.event.inputs.variant == 'VNL' && 'no' || 'yes') }}
-      KSU_SUSFS: ${{ (github.event.inputs.variant == 'KSU SuSFS' || github.event.inputs.variant == 'ReSukiSU') && 'true' || 'false' }}
+      KSU: ${{ github.event.inputs.variant == 'VorteXSU' && 'vortexsu' || (github.event.inputs.variant == 'VNL' && 'no' || 'yes') }}
+      KSU_SUSFS: ${{ (github.event.inputs.variant == 'KSU SuSFS' || github.event.inputs.variant == 'VorteXSU') && 'true' || 'false' }}
       LAST_BUILD: "true"
       KSU_MANUAL_HOOK: "false"
       TODO: "kernel"
