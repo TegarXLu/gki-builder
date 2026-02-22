@@ -250,9 +250,21 @@ if susfs_included; then
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c3) -eq 510 ]; then
       patch -p1 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch
     fi
-    if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
-      patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch
+    
+    # --- FIXED: Special handling for VorteXSU GKI 6.1 ONLY ---
+    # Logic: If variant is VorteXSU and version is 6.1, use sed. Else, use patch file.
+    if [ "$KVER" == "6.1" ] && [ "$KSU" == "vortexsu" ]; then
+      log "Fixing statfs CRC mismatch manually via sed (VorteXSU 6.1)..."
+      # Add #ifndef __GENKSYMS__ after the SUSFS mount check
+      sed -i '/#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT/a #ifndef __GENKSYMS__' fs/statfs.c
+      # Add closing #endif after mount.h include
+      sed -i '/#include "mount.h"/a #endif' fs/statfs.c
+    elif [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
+      # Standard patch for 6.6 or 6.1 (non-VorteXSU)
+      patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch || true
     fi
+    # --------------------------------------------------------
+    
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     config --enable CONFIG_KSU_SUSFS
   else
