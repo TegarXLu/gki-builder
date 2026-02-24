@@ -105,7 +105,7 @@ cd $WORKDIR
 log "Setting Kernel variant..."
 case "$KSU" in
   "yes") VARIANT="KSU" ;;
-  "Supported Unofficial Manager") VARIANT="ReSukiSU" ;; # Added ReSukiSU Type
+  "resukisu") VARIANT="ReSukiSU" ;; # Fixed to match logic check below
   "no") VARIANT="VNL" ;;
 esac
 susfs_included && VARIANT+="+SuSFS"
@@ -254,9 +254,17 @@ if susfs_included; then
     # CRC Fix Logic
     if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
       if [ "$KSU" == "yes" ]; then
-        # KernelSU Next: Use the provided patch
-        log "Applying statfs CRC fix patch (KernelSU Next)..."
-        patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch
+        # KernelSU Next Check specific version
+        if [ "$KVER" == "6.1" ]; then
+          # Khusus GKI 6.1: Gunakan manual fix karena patch bermasalah
+          log "Applying manual statfs CRC fix for KernelSU Next GKI 6.1..."
+          sed -i '/#include <linux\/susfs_def.h>/i #ifndef __GENKSYMS__' fs/statfs.c
+          sed -i '/#include "mount.h"/a #endif' fs/statfs.c
+        else
+          # Versi lain (misal 6.6): Gunakan patch default
+          log "Applying statfs CRC fix patch (KernelSU Next)..."
+          patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch
+        fi
       elif [ "$KSU" == "resukisu" ] && [ "$KVER" == "6.1" ]; then
         # ReSukiSU 6.1: Skip patch, apply manual fix
         log "Applying manual statfs CRC fix for ReSukiSU GKI 6.1..."
