@@ -10,7 +10,7 @@ elif [ "$KVER" == "6.1" ]; then
   RELEASE="v0.1"
 fi
 
-KERNEL_NAME="VorteX-Quix"
+KERNEL_NAME="VorteXSU"
 USER="VorteX"
 HOST="VorteX"
 TIMEZONE="Asia/Jakarta"
