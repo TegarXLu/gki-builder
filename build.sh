@@ -10,11 +10,11 @@ elif [ "$KVER" == "6.1" ]; then
   RELEASE="v0.1"
 fi
 
-KERNEL_NAME="VorteXSU"
-USER="VorteX"
-HOST="VorteX"
+KERNEL_NAME="TegarXLu"
+USER="TegarXLu"
+HOST="TegarXLu"
 TIMEZONE="Asia/Jakarta"
-ANYKERNEL_REPO="https://github.com/Kingfinik98/AnyKernel3"
+ANYKERNEL_REPO="https://github.com/TegarXLu/AnyKernel3"
 
 # Fixed Logic: 5.10 & 6.1 use gki_defconfig, others use quartix_defconfig
 if [ "$KVER" == "5.10" ]; then
@@ -26,9 +26,9 @@ else
 fi
 
 if [ "$KVER" == "6.6" ]; then
-  KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-6.6.git"
-  ANYKERNEL_BRANCH="master"
-  KERNEL_BRANCH="android15-6.6-staging"
+  KERNEL_REPO="https://github.com/71chjzkc/capybara-aosp-gki"
+  ANYKERNEL_BRANCH="main"
+  KERNEL_BRANCH="6.6.89-capybara-gki-1.0"
 elif [ "$KVER" == "6.1" ]; then
   KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-6.1.git"
   ANYKERNEL_BRANCH="master"
@@ -39,7 +39,7 @@ elif [ "$KVER" == "5.10" ]; then
   KERNEL_BRANCH="android12-5.10-staging"
 fi
 DEFCONFIG_TO_MERGE=""
-GKI_RELEASES_REPO="https://github.com/Kingfinik98/gki-builder"
+GKI_RELEASES_REPO="https://github.com/TegarXLu/gki-builder"
 #Change the clang by removing the (#) sign then apply
 #CLANG_URL="https://github.com/linastorvaldz/idk/releases/download/clang-r547379/clang.tgz"
 #CLANG_URL="https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b/archive/refs/heads/lineage-20.0.tar.gz"
