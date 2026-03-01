@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Define target defconfig location
-DEFCONFIG="arch/arm64/configs/gki_defconfig"
+DEFCONFIG="arch/arm64/configs/rodin_defconfig"
 
 echo "⚙️ Added KSU & SuSFS configuration"
 
