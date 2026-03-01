@@ -230,7 +230,7 @@ if susfs_included; then
     SUSFS_DIR="$WORKDIR/susfs"
     SUSFS_PATCHES="${SUSFS_DIR}/kernel_patches"
     if [ "$KVER" == "6.6" ]; then
-      SUSFS_BRANCH=gki-android15-6.6
+      SUSFS_BRANCH=92783393fdca3c506e66765fde6a5aeff136a473
     elif [ "$KVER" == "6.1" ]; then
       SUSFS_BRANCH=gki-android14-6.1
     elif [ "$KVER" == "5.10" ]; then
