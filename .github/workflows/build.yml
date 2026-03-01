@@ -22,7 +22,7 @@ on:
     inputs:
       TODO:
         description: To do
-        default: ""
+        default: "kernel"
         type: choice
         options:
           - "kernel"
@@ -30,7 +30,7 @@ on:
 
       KSU:
         description: KernelSU Type
-        default: "yes"
+        default: "resukisu"
         type: choice
         options:
           - "no"
@@ -38,7 +38,7 @@ on:
           - "resukisu"
       KSU_SUSFS:
         description: Include SUSFS?
-        default: "false"
+        default: "yes"
         type: choice
         options:
           - "true"
@@ -54,7 +54,7 @@ on:
 
       KERNEL_VERSION:
         description: Which kernel version do you want to build?
-        default: ""
+        default: "6.6"
         type: choice
         options:
           - "6.6"
