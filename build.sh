@@ -17,12 +17,12 @@ TIMEZONE="Asia/Jakarta"
 ANYKERNEL_REPO="https://github.com/TegarXLu/AnyKernel3"
 
 # Fixed Logic: 5.10 & 6.1 use gki_defconfig, others use quartix_defconfig
-if [ "$KVER" == "5.10" ]; then
-  KERNEL_DEFCONFIG="gki_defconfig"
+if [ "$KVER" == "6.6" ]; then
+  KERNEL_DEFCONFIG="rodin_defconfig"
 elif [ "$KVER" == "6.1" ]; then
   KERNEL_DEFCONFIG="gki_defconfig"
 else
-  KERNEL_DEFCONFIG="gki_defconfig"
+  KERNEL_DEFCONFIG="rodin_defconfig"
 fi
 
 if [ "$KVER" == "6.6" ]; then
