@@ -230,13 +230,13 @@ if susfs_included; then
     SUSFS_DIR="$WORKDIR/susfs"
     SUSFS_PATCHES="${SUSFS_DIR}/kernel_patches"
     if [ "$KVER" == "6.6" ]; then
-      SUSFS_BRANCH=92783393fdca3c506e66765fde6a5aeff136a473
+      SUSFS_BRANCH=gki_android15-6.6-dev
     elif [ "$KVER" == "6.1" ]; then
       SUSFS_BRANCH=gki-android14-6.1
     elif [ "$KVER" == "5.10" ]; then
       SUSFS_BRANCH=gki-android12-5.10
     fi
-    git clone --depth=1 -q https://gitlab.com/simonpunk/susfs4ksu/-/tree/92783393fdca3c506e66765fde6a5aeff136a473 -b $SUSFS_BRANCH $SUSFS_DIR
+    git clone --depth=1 -q https://gitlab.com/simonpunk/susfs4ksu -b $SUSFS_BRANCH $SUSFS_DIR
     cp -R $SUSFS_PATCHES/fs/* ./fs
     cp -R $SUSFS_PATCHES/include/* ./include
     patch -p1 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_BRANCH}.patch || true
