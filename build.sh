@@ -75,22 +75,6 @@ LINUX_VERSION=$(make kernelversion)
 LINUX_VERSION_CODE=${LINUX_VERSION//./}
 DEFCONFIG_FILE=$(find ./arch/arm64/configs -name "$KERNEL_DEFCONFIG")
 
-# --- PATCH INFINIX GT 20 PRO CAM (GKI 5.10 ONLY) ---
-if [ "$KVER" == "5.10" ]; then
-  log "📸 Applying Infinix GT 20 Pro Camera Fix..."
-  curl -L "https://github.com/ramabondanp/android_kernel_common-5.10/commit/4fe04b60009e.patch" -o infinix_cam.patch
-  patch -p1 < infinix_cam.patch || log "Camera patch already embedded."
-  rm infinix_cam.patch
-fi
-# ----------------------------------------------------
-
-# --- PATCH 500HZ (INSTALLED AT THE BEGINNING) ---
-log "Applying 500Hz patch..."
-wget -qO Inject_500hz.sh https://raw.githubusercontent.com/Kingfinik98/gki-builder/refs/heads/6.x/inject_ksu/Inject_500hz.sh
-bash Inject_500hz.sh
-rm Inject_500hz.sh
-#--------------------------------------
-
 # --- ADD KSU INJECT SCRIPT ---
 log "Injecting custom KSU & SuSFS configs from GitHub..."
 export KSU
@@ -194,7 +178,7 @@ elif [ "$KSU" == "resukisu" ]; then
   
   # Run the ReSukiSU setup script (using branch main)
   log "Running ReSukiSU setup from main branch..."
-  curl -LSs "https://raw.githubusercontent.com/Kingfinik98/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
+  curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
   # PATCH SUSFS for GKI 5.10
   if [ "$KVER" == "5.10" ]; then
     log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."
@@ -230,7 +214,7 @@ if susfs_included; then
     SUSFS_DIR="$WORKDIR/susfs"
     SUSFS_PATCHES="${SUSFS_DIR}/kernel_patches"
     if [ "$KVER" == "6.6" ]; then
-      SUSFS_BRANCH=gki_android15-6.6-dev
+      SUSFS_BRANCH=gki-android15-6.6-dev
     elif [ "$KVER" == "6.1" ]; then
       SUSFS_BRANCH=gki-android14-6.1
     elif [ "$KVER" == "5.10" ]; then
