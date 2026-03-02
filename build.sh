@@ -284,7 +284,7 @@ fi
 export KBUILD_BUILD_USER="$USER"
 export KBUILD_BUILD_HOST="$HOST"
 export KBUILD_BUILD_TIMESTAMP=$(date)
-export KCFLAGS="-w"
+export KCFLAGS="-w -flto"
 if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
   MAKE_ARGS=(
     LLVM=1
@@ -297,6 +297,7 @@ if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
 else
   MAKE_ARGS=(
     LLVM=1
+    LTO=1
     LLVM_IAS=1
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
