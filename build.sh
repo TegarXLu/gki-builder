@@ -26,7 +26,7 @@ else
 fi
 
 if [ "$KVER" == "6.6" ]; then
-  KERNEL_REPO="https://github.com/TegarXLu/capybara-aosp-gki"
+  KERNEL_REPO="https://github.com/71chjzkc/capybara-aosp-gki"
   ANYKERNEL_BRANCH="main"
   KERNEL_BRANCH="susfs-6.6.89-capybara-gki-1.0"
 elif [ "$KVER" == "6.1" ]; then
