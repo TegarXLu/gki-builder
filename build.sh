@@ -80,7 +80,7 @@ DEFCONFIG_FILE=$(find ./arch/arm64/configs -name "$KERNEL_DEFCONFIG")
 log "Injecting custom KSU & SuSFS configs from GitHub..."
 export KSU
 export KSU_SUSFS
-wget -qO inject.sh https://raw.githubusercontent.com/TegarXLu/gki-builder/refs/heads/6.x/inject_ksu/gki_defconfig.sh
+wget -qO "inject.sh https://raw.githubusercontent.com/TegarXLu/gki-builder/6.x/inject_ksu/gki_defconfig.sh"
 bash inject.sh
 rm inject.sh
 # --------------------------------------
@@ -179,7 +179,7 @@ elif [ "$KSU" == "resukisu" ]; then
   
   # Run the ReSukiSU setup script (using branch main)
   log "Running ReSukiSU setup from main branch..."
-  curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
+  curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
   # PATCH SUSFS for GKI 5.10
   if [ "$KVER" == "5.10" ]; then
     log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."
