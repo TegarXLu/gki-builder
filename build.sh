@@ -16,7 +16,7 @@ HOST="TegarXLu"
 TIMEZONE="Asia/Jakarta"
 ANYKERNEL_REPO="https://github.com/TegarXLu/AnyKernel3"
 
-# Fixed Logic: 5.10 & 6.1 use gki_defconfig, others use quartix_defconfig
+# Fixed Logic: 5.10 & 6.1 use gki_defconfig, others use rodin_defconfig
 if [ "$KVER" == "6.6" ]; then
   KERNEL_DEFCONFIG="rodin_defconfig"
 elif [ "$KVER" == "6.1" ]; then
