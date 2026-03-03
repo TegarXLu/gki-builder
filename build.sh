@@ -285,67 +285,28 @@ fi
 export KBUILD_BUILD_USER="$USER"
 export KBUILD_BUILD_HOST="$HOST"
 export KBUILD_BUILD_TIMESTAMP=$(date)
-
-# Optimasi agresif untuk gaming pada Dimensity 8300 Ultra (Cortex-A78 + A55)
-export KCFLAGS="-O3 -march=armv8.2-a+fp16+dotprod -mcpu=cortex-a78+cortex-a55 -flto=thin -fsplit-lto-unit -fwhole-program-vtables -fforce-emit-vtables -fvirtual-function-elimination -Wno-error"
-
-# Export LLVM tools untuk Thin LTO (WAJIB!)
-export AR=llvm-ar
-export NM=llvm-nm
-export OBJCOPY=llvm-objcopy
-export OBJDUMP=llvm-objdump
-export STRIP=llvm-strip
-export LLVM_AR=llvm-ar
-export LLVM_NM=llvm-nm
-
-# Common MAKE_ARGS untuk SEMUA versi kernel dengan Thin LTO
-MAKE_ARGS=(
-  LLVM=1
-  LLVM_IAS=1
-  ARCH=arm64
-  CROSS_COMPILE=aarch64-linux-gnu-
-  CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
-  AR=llvm-arexport STRIP=llvm-strip
-export LLVM_AR=llvm-ar
-export LLVM_NM=llvm-nm
-
-# Common MAKE_ARGS untuk SEMUA versi kernel dengan Thin LTO
-MAKE_ARGS=(
-  LLVM=1
-  LLVM_IAS=1
-  ARCH=arm64
-  CROSS_COMPILE=aarch64-linux-gnu-
-  CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
-  AR=llvm-ar
-  NM=llvm-nm
-  OBJCOPY=llvm-objcopy
-  OBJDUMP=llvm-objdump
-  STRIP=llvm-strip
-  LTO=thin
-  -j$(nproc --all)
-  O=$OUTDIR
-)
-
-# Aktifkan Thin LTO dan optimasi gaming
-log "Configuring Thin LTO and gaming optimizations..."
-scripts/config --file $OUTDIR/.config \
-  -e LTO_CLANG \
-  -e LTO_CLANG_THIN \
-  -d LTO_NONE \
-  -d LTO_CLANG_FULL \
-  -e THINLTO \
-  -e CC_OPTIMIZE_FOR_PERFORMANCE_O3 \
-  -d CC_OPTIMIZE_FOR_PERFORMANCE \
-  -d DEBUG_INFO \
-  -d DEBUG_INFO_DWARF4 \
-  -d DEBUG_INFO_DWARF5 \
-  -d GCOV_KERNEL \
-  -d KASAN \
-  -e OPTIMIZE_INLINING \
-  -e ARM64_LSE_ATOMICS
-
-# Re-generate config dengan perubahan
-make ${MAKE_ARGS[@]} olddefconfig
+export KCFLAGS="-w"
+if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
+  MAKE_ARGS=(
+    LLVM=1
+    ARCH=arm64
+    CROSS_COMPILE=aarch64-linux-gnu-
+    CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+    -j$(nproc --all)
+    O=$OUTDIR
+  )
+else
+  MAKE_ARGS=(
+    LLVM=1
+    LTO=1
+    LLVM_IAS=1
+    ARCH=arm64
+    CROSS_COMPILE=aarch64-linux-gnu-
+    CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+    -j$(nproc --all)
+    O=$OUTDIR
+  )
+fi
 
 KERNEL_IMAGE="$OUTDIR/arch/arm64/boot/Image"
 MODULE_SYMVERS="$OUTDIR/Module.symvers"
