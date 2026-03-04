@@ -73,55 +73,23 @@ git clone -q --depth=1 $KERNEL_REPO -b $KERNEL_BRANCH $KSRC
 
 cd $KSRC
 # ==========================
-# AUTO UPSTREAM (MTK SAFE)
+# ANDROID ACK UPSTREAM (SAFE)
 # ==========================
 if [ "$KVER" == "6.6" ]; then
-  log "[UPSTREAM] Starting Linux Stable upstream..."
+  log "[UPSTREAM] Syncing with Android Common Kernel..."
 
   git config user.name "builder"
   git config user.email "builder@localhost"
 
-  # add linux stable
-  git remote add linux-stable \
-    https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git || true
+  git remote add aosp \
+    https://android.googlesource.com/kernel/common || true
 
-  git fetch linux-stable --tags
+  git fetch aosp android15-6.6
 
-  # detect latest 6.6 LTS
-  LATEST_TAG=$(git tag | grep '^v6\.6' | sort -V | tail -n1)
+  # merge ACK instead of linux-stable
+  git merge aosp/android15-6.6 -X theirs --no-edit || true
 
-  log "[UPSTREAM] Target version: $LATEST_TAG"
-
-  git checkout -b auto-upstream || true
-
-  # merge upstream (do not stop build if conflict)
-  git merge $LATEST_TAG --allow-unrelated-histories -X theirs --no-edit || true
-
-
-  # ==========================
-  # MTK DRIVER PROTECTION
-  # ==========================
-log "[UPSTREAM] Restoring MTK vendor drivers..."
-
-git checkout HEAD -- drivers/*mediatek* || true
-git checkout HEAD -- sound/*mediatek* || true
-git checkout HEAD -- vendor || true
-
-  # ==========================
-  # REQUIRED CONFIG FIX (ReSuKiSU)
-  # ==========================
-  log "[UPSTREAM] Applying required config fixes..."
-
-  scripts/config --enable KPROBES || true
-  scripts/config --enable KALLSYMS || true
-  scripts/config --enable KALLSYMS_ALL || true
-  scripts/config --enable BPF || true
-  scripts/config --enable BPF_SYSCALL || true
-
-log "[UPSTREAM] Cleaning source tree..."
-make ARCH=arm64 mrproper
-
-  log "[UPSTREAM] Done."
+  log "[UPSTREAM] ACK upstream complete."
 fi
 
 LINUX_VERSION=$(make kernelversion)
