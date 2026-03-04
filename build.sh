@@ -333,21 +333,6 @@ if [ $TODO == "kernel" ]; then
   sed -i 's/echo "+"/# echo "+"/g' scripts/setlocalversion
 fi
 
-# --- Rodin upstream compatibility fix ---
-echo "[FIX] Patching task_mmu label..."
-
-FILE="fs/proc/task_mmu.c"
-
-# Tambah label out: jika belum ada
-if ! grep -q "^out:" $FILE; then
-    sed -i '/return 0;/i\
-out:
-' $FILE
-fi
-
-echo "[OK] label out added"
-# ----------------------------------------
-
 # Declare needed variables
 export KBUILD_BUILD_USER="$USER"
 export KBUILD_BUILD_HOST="$HOST"
