@@ -16,7 +16,7 @@ HOST="TegarXLu"
 TIMEZONE="Asia/Jakarta"
 ANYKERNEL_REPO="https://github.com/TegarXLu/AnyKernel3"
 
-# Fixed Logic: 5.10 & 6.1 use gki_defconfig, others use rodin_defconfig
+# Fixed Logic: 5.10 & 6.1 use gki_defconfig, others use quartix_defconfig
 if [ "$KVER" == "6.6" ]; then
   KERNEL_DEFCONFIG="rodin_defconfig"
 elif [ "$KVER" == "6.1" ]; then
@@ -41,13 +41,13 @@ fi
 DEFCONFIG_TO_MERGE=""
 GKI_RELEASES_REPO="https://github.com/TegarXLu/gki-builder"
 #Change the clang by removing the (#) sign then apply
-CLANG_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz"
+#CLANG_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.0/LLVM-22.1.0-Linux-X64.tar.xz"
 #CLANG_URL="https://github.com/linastorvaldz/idk/releases/download/clang-r547379/clang.tgz"
 #CLANG_URL="https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b/archive/refs/heads/lineage-20.0.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/62cdcefa89e31af2d72c366e8b5ef8db84caea62/clang-r547379.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/105aba85d97a53d364585ca755752dae054b49e8/clang-r584948b.tar.gz"
-#CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260302/gf-clang-23.0.0-20260302.tar.gz"
+CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948b.tar.gz"
 #CLANG_URL="https://github.com/linastorvaldz/gki-builder/releases/download/clang-r487747c/clang-r487747c.tar.gz"
 #CLANG_URL="$(./clang.sh slim)"
@@ -72,6 +72,57 @@ log "Cloning kernel source from $(simplify_gh_url "$KERNEL_REPO")"
 git clone -q --depth=1 $KERNEL_REPO -b $KERNEL_BRANCH $KSRC
 
 cd $KSRC
+# ==========================
+# AUTO UPSTREAM (MTK SAFE)
+# ==========================
+if [ "$KVER" == "6.6" ]; then
+  log "[UPSTREAM] Starting Linux Stable upstream..."
+
+  git config user.name "builder"
+  git config user.email "builder@localhost"
+
+  # add linux stable
+  git remote add linux-stable \
+    https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git || true
+
+  git fetch linux-stable --tags
+
+  # detect latest 6.6 LTS
+  LATEST_TAG=$(git tag | grep '^v6\.6' | sort -V | tail -n1)
+
+  log "[UPSTREAM] Target version: $LATEST_TAG"
+
+  git checkout -b auto-upstream || true
+
+  # merge upstream (do not stop build if conflict)
+  git merge $LATEST_TAG -X theirs || true
+
+
+  # ==========================
+  # MTK DRIVER PROTECTION
+  # ==========================
+  log "[UPSTREAM] Restoring MTK vendor drivers..."
+
+  git checkout HEAD -- drivers/misc/mediatek || true
+  git checkout HEAD -- drivers/thermal || true
+  git checkout HEAD -- drivers/gpu || true
+  git checkout HEAD -- drivers/interconnect || true
+  git checkout HEAD -- sound/soc/mediatek || true
+
+  # ==========================
+  # REQUIRED CONFIG FIX (ReSuKiSU)
+  # ==========================
+  log "[UPSTREAM] Applying required config fixes..."
+
+  scripts/config --enable KPROBES || true
+  scripts/config --enable KALLSYMS || true
+  scripts/config --enable KALLSYMS_ALL || true
+  scripts/config --enable BPF || true
+  scripts/config --enable BPF_SYSCALL || true
+
+  log "[UPSTREAM] Done."
+fi
+
 LINUX_VERSION=$(make kernelversion)
 LINUX_VERSION_CODE=${LINUX_VERSION//./}
 DEFCONFIG_FILE=$(find ./arch/arm64/configs -name "$KERNEL_DEFCONFIG")
@@ -80,7 +131,7 @@ DEFCONFIG_FILE=$(find ./arch/arm64/configs -name "$KERNEL_DEFCONFIG")
 log "Injecting custom KSU & SuSFS configs from GitHub..."
 export KSU
 export KSU_SUSFS
-wget -qO inject.sh https://raw.githubusercontent.com/TegarXLu/gki-builder/6.x/inject_ksu/gki_defconfig.sh
+wget -qO inject.sh https://raw.githubusercontent.com/TegarXLu/gki-builder/refs/heads/6.x/inject_ksu/gki_defconfig.sh
 bash inject.sh
 rm inject.sh
 # --------------------------------------
@@ -179,7 +230,7 @@ elif [ "$KSU" == "resukisu" ]; then
   
   # Run the ReSukiSU setup script (using branch main)
   log "Running ReSukiSU setup from main branch..."
-  curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
+  curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
   # PATCH SUSFS for GKI 5.10
   if [ "$KVER" == "5.10" ]; then
     log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."
@@ -286,21 +337,27 @@ export KBUILD_BUILD_USER="$USER"
 export KBUILD_BUILD_HOST="$HOST"
 export KBUILD_BUILD_TIMESTAMP=$(date)
 export KCFLAGS="-w"
-MAKE_ARGS=(
-  LLVM=1
-  LLVM_IAS=1
-  LTO=thin
-  ARCH=arm64
-  CC=clang
-  LD=ld.lld
-  AR=llvm-ar
-  NM=llvm-nm
-  STRIP=llvm-strip
-  OBJCOPY=llvm-objcopy
-  OBJDUMP=llvm-objdump
-  -j$(nproc --all)
-  O=$OUTDIR
-)
+if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
+  MAKE_ARGS=(
+    LLVM=1
+    ARCH=arm64
+    CROSS_COMPILE=aarch64-linux-gnu-
+    CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+    -j$(nproc --all)
+    O=$OUTDIR
+  )
+else
+  MAKE_ARGS=(
+    LLVM=1
+    LTO=1
+    LLVM_IAS=1
+    ARCH=arm64
+    CROSS_COMPILE=aarch64-linux-gnu-
+    CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+    -j$(nproc --all)
+    O=$OUTDIR
+  )
+fi
 
 KERNEL_IMAGE="$OUTDIR/arch/arm64/boot/Image"
 MODULE_SYMVERS="$OUTDIR/Module.symvers"
@@ -323,6 +380,7 @@ EOF
 ## Build GKI
 log "Generating config..."
 make ${MAKE_ARGS[@]} $KERNEL_DEFCONFIG
+make ${MAKE_ARGS[@]} olddefconfig
 
 if [ "$DEFCONFIG_TO_MERGE" ]; then
   log "Merging configs..."
