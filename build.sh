@@ -285,7 +285,7 @@ fi
 export KBUILD_BUILD_USER="$USER"
 export KBUILD_BUILD_HOST="$HOST"
 export KBUILD_BUILD_TIMESTAMP=$(date)
-export KCFLAGS="-O2 -pipe"
+export KCFLAGS="-w"
 MAKE_ARGS=(
   LLVM=1
   LLVM_IAS=1
