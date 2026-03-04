@@ -334,16 +334,18 @@ if [ $TODO == "kernel" ]; then
 fi
 
 # --- Rodin upstream compatibility fix ---
-echo "[FIX] Applying task_mmu upstream compatibility patch..."
+echo "[FIX] Patching task_mmu label..."
 
-TASKMMU="fs/proc/task_mmu.c"
+FILE="fs/proc/task_mmu.c"
 
-if grep -q "goto show_pad" $TASKMMU 2>/dev/null; then
-    sed -i 's/goto show_pad;/goto out;/g' $TASKMMU
-    echo "[OK] show_pad conflict patched"
-else
-    echo "[SKIP] patch not needed"
+# Tambah label out: jika belum ada
+if ! grep -q "^out:" $FILE; then
+    sed -i '/return 0;/i\
+out:
+' $FILE
 fi
+
+echo "[OK] label out added"
 # ----------------------------------------
 
 # Declare needed variables
