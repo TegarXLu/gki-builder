@@ -135,15 +135,16 @@ jobs:
           sudo apt-get install -y gh bc bison flex libssl-dev libelf-dev dwarves cpio
           pip install lxml
 
-      - name: Enable swap with high priority and optimal swappiness
+      - name: Enable optimized swap
         run: |
           sudo swapoff -a
-          sudo fallocate -l 12G /swapfile
+          sudo rm -f /swapfile
+          sudo fallocate -l 20G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile --priority 100
-          sudo sysctl vm.swappiness=10
-          sudo sysctl vm.vfs_cache_pressure=50
+          sudo sysctl vm.swappiness=80
+          sudo sysctl vm.vfs_cache_pressure=30
           free -h
           swapon --show
 
