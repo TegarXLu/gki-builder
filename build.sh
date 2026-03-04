@@ -333,6 +333,19 @@ if [ $TODO == "kernel" ]; then
   sed -i 's/echo "+"/# echo "+"/g' scripts/setlocalversion
 fi
 
+# --- Rodin upstream compatibility fix ---
+echo "[FIX] Applying task_mmu upstream compatibility patch..."
+
+TASKMMU="fs/proc/task_mmu.c"
+
+if grep -q "goto show_pad" $TASKMMU 2>/dev/null; then
+    sed -i 's/goto show_pad;/goto out;/g' $TASKMMU
+    echo "[OK] show_pad conflict patched"
+else
+    echo "[SKIP] patch not needed"
+fi
+# ----------------------------------------
+
 # Declare needed variables
 export KBUILD_BUILD_USER="$USER"
 export KBUILD_BUILD_HOST="$HOST"
