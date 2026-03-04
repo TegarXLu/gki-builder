@@ -95,19 +95,17 @@ if [ "$KVER" == "6.6" ]; then
   git checkout -b auto-upstream || true
 
   # merge upstream (do not stop build if conflict)
-  git merge $LATEST_TAG -X theirs || true
+  git merge $LATEST_TAG --allow-unrelated-histories -X theirs --no-edit || true
 
 
   # ==========================
   # MTK DRIVER PROTECTION
   # ==========================
-  log "[UPSTREAM] Restoring MTK vendor drivers..."
+log "[UPSTREAM] Restoring MTK vendor drivers..."
 
-  git checkout HEAD -- drivers/misc/mediatek || true
-  git checkout HEAD -- drivers/thermal || true
-  git checkout HEAD -- drivers/gpu || true
-  git checkout HEAD -- drivers/interconnect || true
-  git checkout HEAD -- sound/soc/mediatek || true
+git checkout HEAD -- drivers/*mediatek* || true
+git checkout HEAD -- sound/*mediatek* || true
+git checkout HEAD -- vendor || true
 
   # ==========================
   # REQUIRED CONFIG FIX (ReSuKiSU)
@@ -119,6 +117,9 @@ if [ "$KVER" == "6.6" ]; then
   scripts/config --enable KALLSYMS_ALL || true
   scripts/config --enable BPF || true
   scripts/config --enable BPF_SYSCALL || true
+
+log "[UPSTREAM] Cleaning source tree..."
+make ARCH=arm64 mrproper
 
   log "[UPSTREAM] Done."
 fi
@@ -215,7 +216,7 @@ if ksu_included; then
   config --enable CONFIG_KSU
 
   cd KernelSU-Next
-  patch -p1 < $KERNEL_PATCHES/ksu/ksun-add-more-managers-support.patch
+  patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/ksu/ksun-add-more-managers-support.patch || true
   cd $OLDPWD
     # Fix SUSFS Uname Symbol Error for KernelSU Next & All_Manager
     log "Applying fix for undefined SUSFS symbols (KernelSU-Next)..."
@@ -241,7 +242,7 @@ elif [ "$KSU" == "resukisu" ]; then
     cp -r $susfs/fs .
     cp -r $susfs/include .
     cp -r $susfs/50_add_susfs_in_${SUSFS_BRANCH}.patch .
-    patch -p1 < 50_add_susfs_in_${SUSFS_BRANCH}.patch || true
+    patch -p1 --forward --fuzz=3 < 50_add_susfs_in_${SUSFS_BRANCH}.patch || true
     # Get SUSFS version for build info
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     config --disable CONFIG_KPM
@@ -275,16 +276,16 @@ if susfs_included; then
     git clone --depth=1 -q https://gitlab.com/simonpunk/susfs4ksu -b $SUSFS_BRANCH $SUSFS_DIR
     cp -R $SUSFS_PATCHES/fs/* ./fs
     cp -R $SUSFS_PATCHES/include/* ./include
-    patch -p1 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_BRANCH}.patch || true
+    patch -p1 --forward --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_BRANCH}.patch || true
     if [ $(echo "$LINUX_VERSION_CODE" | head -c4) -eq 6630 ]; then
-      patch -p1 < $KERNEL_PATCHES/susfs/namespace.c_fix.patch
-      patch -p1 < $KERNEL_PATCHES/susfs/task_mmu.c_fix.patch
+      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/namespace.c_fix.patch || true
+      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/task_mmu.c_fix.patch || true
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c4) -eq 6658 ]; then
-      patch -p1 < $KERNEL_PATCHES/susfs/task_mmu.c_fix-k6.6.58.patch
+      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/task_mmu.c_fix-k6.6.58.patch || true
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c2) -eq 61 ]; then
-      patch -p1 < $KERNEL_PATCHES/susfs/fs_proc_base.c-fix-k6.1.patch
+      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/fs_proc_base.c-fix-k6.1.patch || true
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c3) -eq 510 ]; then
-      patch -p1 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch
+      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch || true
     fi
 
     # CRC Fix Logic
@@ -299,7 +300,7 @@ if susfs_included; then
         else
           # Versi lain (misal 6.6): Gunakan patch default
           log "Applying statfs CRC fix patch (KernelSU Next)..."
-          patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch
+          patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch || true
         fi
       elif [ "$KSU" == "resukisu" ] && [ "$KVER" == "6.1" ]; then
         # ReSukiSU 6.1: Skip patch, apply manual fix
