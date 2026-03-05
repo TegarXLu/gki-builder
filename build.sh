@@ -72,6 +72,7 @@ log "Cloning kernel source from $(simplify_gh_url "$KERNEL_REPO")"
 git clone -q --depth=1 $KERNEL_REPO -b $KERNEL_BRANCH $KSRC
 
 cd $KSRC
+make ARCH=arm64 mrproper
 # ==========================
 # ANDROID ACK UPSTREAM (SAFE)
 # ==========================
