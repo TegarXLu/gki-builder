@@ -244,9 +244,20 @@ if susfs_included; then
     git clone --depth=1 -q https://gitlab.com/simonpunk/susfs4ksu -b $SUSFS_BRANCH $SUSFS_DIR
     cp -R $SUSFS_PATCHES/fs/* ./fs
     cp -R $SUSFS_PATCHES/include/* ./include
-     patch -p1 --forward --fuzz=3 < 50_add_susfs_in_${SUSFS_BRANCH}.patch || true
-    # fix duplicate declaration caused by newer ACK
-    sed -i '939d' fs/proc/base.c 2>/dev/null || true
+     log "Applying SUSFS core patch..."
+
+patch -p1 --forward --fuzz=3 \
+  < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_BRANCH}.patch || true
+
+# =====================================
+# FIX: Kernel 6.6 upstream proc break
+# =====================================
+if [ "$KVER" == "6.6" ]; then
+  log "Fixing SUSFS procfs incompatibility (6.6 upstream)"
+
+  # restore original proc implementation
+  git checkout HEAD -- fs/proc/base.c || true
+fi
     if [ $(echo "$LINUX_VERSION_CODE" | head -c4) -eq 6630 ]; then
       patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/namespace.c_fix.patch || true
       patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/task_mmu.c_fix.patch || true
