@@ -41,13 +41,13 @@ fi
 DEFCONFIG_TO_MERGE=""
 GKI_RELEASES_REPO="https://github.com/TegarXLu/gki-builder"
 #Change the clang by removing the (#) sign then apply
-#CLANG_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.0/LLVM-22.1.0-Linux-X64.tar.xz"
+CLANG_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.0/LLVM-22.1.0-Linux-X64.tar.xz"
 #CLANG_URL="https://github.com/linastorvaldz/idk/releases/download/clang-r547379/clang.tgz"
 #CLANG_URL="https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b/archive/refs/heads/lineage-20.0.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/62cdcefa89e31af2d72c366e8b5ef8db84caea62/clang-r547379.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/105aba85d97a53d364585ca755752dae054b49e8/clang-r584948b.tar.gz"
-CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
+#CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
 #CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948b.tar.gz"
 #CLANG_URL="https://github.com/linastorvaldz/gki-builder/releases/download/clang-r487747c/clang-r487747c.tar.gz"
 #CLANG_URL="$(./clang.sh slim)"
@@ -72,26 +72,6 @@ log "Cloning kernel source from $(simplify_gh_url "$KERNEL_REPO")"
 git clone -q --depth=1 $KERNEL_REPO -b $KERNEL_BRANCH $KSRC
 
 cd $KSRC
-# ==========================
-# ANDROID ACK UPSTREAM (SAFE)
-# ==========================
-if [ "$KVER" == "6.6" ]; then
-  log "[UPSTREAM] Syncing with Android Common Kernel..."
-
-  git config user.name "builder"
-  git config user.email "builder@localhost"
-
-  git remote add aosp \
-    https://android.googlesource.com/kernel/common || true
-
-  git fetch aosp android15-6.6
-
-  # merge ACK instead of linux-stable
-  git merge aosp/android15-6.6 -X theirs --no-edit || true
-
-  log "[UPSTREAM] ACK upstream complete."
-fi
-
 LINUX_VERSION=$(make kernelversion)
 LINUX_VERSION_CODE=${LINUX_VERSION//./}
 DEFCONFIG_FILE=$(find ./arch/arm64/configs -name "$KERNEL_DEFCONFIG")
@@ -184,7 +164,7 @@ if ksu_included; then
   config --enable CONFIG_KSU
 
   cd KernelSU-Next
-  patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/ksu/ksun-add-more-managers-support.patch || true
+  patch -p1 < $KERNEL_PATCHES/ksu/ksun-add-more-managers-support.patch
   cd $OLDPWD
     # Fix SUSFS Uname Symbol Error for KernelSU Next & All_Manager
     log "Applying fix for undefined SUSFS symbols (KernelSU-Next)..."
@@ -210,7 +190,7 @@ elif [ "$KSU" == "resukisu" ]; then
     cp -r $susfs/fs .
     cp -r $susfs/include .
     cp -r $susfs/50_add_susfs_in_${SUSFS_BRANCH}.patch .
-    patch -p1 --forward --fuzz=3 < 50_add_susfs_in_${SUSFS_BRANCH}.patch || true
+    patch -p1 < 50_add_susfs_in_${SUSFS_BRANCH}.patch || true
     # Get SUSFS version for build info
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     config --disable CONFIG_KPM
@@ -244,40 +224,17 @@ if susfs_included; then
     git clone --depth=1 -q https://gitlab.com/simonpunk/susfs4ksu -b $SUSFS_BRANCH $SUSFS_DIR
     cp -R $SUSFS_PATCHES/fs/* ./fs
     cp -R $SUSFS_PATCHES/include/* ./include
-     log "Applying SUSFS core patch..."
-
-patch -p1 --forward --fuzz=3 \
-  < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_BRANCH}.patch || true
-
-# =====================================
-# FIX: Kernel 6.6 upstream proc break
-# =====================================
-if [ "$KVER" == "6.6" ]; then
-  log "Fixing SUSFS procfs incompatibility (6.6 upstream)"
-
-  # restore original proc implementation
-  git checkout HEAD -- fs/proc/base.c || true
-fi
+    patch -p1 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_BRANCH}.patch || true
     if [ $(echo "$LINUX_VERSION_CODE" | head -c4) -eq 6630 ]; then
-      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/namespace.c_fix.patch || true
-      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/task_mmu.c_fix.patch || true
+      patch -p1 < $KERNEL_PATCHES/susfs/namespace.c_fix.patch
+      patch -p1 < $KERNEL_PATCHES/susfs/task_mmu.c_fix.patch
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c4) -eq 6658 ]; then
-      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/task_mmu.c_fix-k6.6.58.patch || true
+      patch -p1 < $KERNEL_PATCHES/susfs/task_mmu.c_fix-k6.6.58.patch
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c2) -eq 61 ]; then
-      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/fs_proc_base.c-fix-k6.1.patch || true
+      patch -p1 < $KERNEL_PATCHES/susfs/fs_proc_base.c-fix-k6.1.patch
     elif [ $(echo "$LINUX_VERSION_CODE" | head -c3) -eq 510 ]; then
-      patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch || true
+      patch -p1 < $KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch
     fi
-
-  # ====================================
-  # FIX SUSFS duplicate vma (Kernel 6.6)
-  # ====================================
-  log "Fixing SUSFS duplicate vma declaration..."
-
-  sed -i '/struct vm_area_struct \*vma;/{
-  N
-  /struct vm_area_struct \*vma;/d
-  }' fs/proc/base.c || true
 
     # CRC Fix Logic
     if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
@@ -291,7 +248,7 @@ fi
         else
           # Versi lain (misal 6.6): Gunakan patch default
           log "Applying statfs CRC fix patch (KernelSU Next)..."
-          patch -p1 --forward --fuzz=3 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch || true
+          patch -p1 < $KERNEL_PATCHES/susfs/fix-statfs-crc-mismatch-susfs.patch
         fi
       elif [ "$KSU" == "resukisu" ] && [ "$KVER" == "6.1" ]; then
         # ReSukiSU 6.1: Skip patch, apply manual fix
@@ -372,7 +329,6 @@ EOF
 ## Build GKI
 log "Generating config..."
 make ${MAKE_ARGS[@]} $KERNEL_DEFCONFIG
-make ${MAKE_ARGS[@]} olddefconfig
 
 if [ "$DEFCONFIG_TO_MERGE" ]; then
   log "Merging configs..."
