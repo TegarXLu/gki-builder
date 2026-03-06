@@ -179,7 +179,7 @@ elif [ "$KSU" == "resukisu" ]; then
   
   # Run the ReSukiSU setup script (using branch main)
   log "Running ReSukiSU setup from main branch..."
-  curl -LSs "https://raw.githubusercontent.com/TegarXLu/ReSukiSU/main/kernel/setup.sh" | bash -s main
+  curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/Crowdin/kernel/setup.sh" | bash -s Crowdin
   # PATCH SUSFS for GKI 5.10
   if [ "$KVER" == "5.10" ]; then
     log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."
