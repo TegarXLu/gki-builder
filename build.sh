@@ -348,34 +348,41 @@ EOF
 log "Generating config..."
 make "${MAKE_ARGS[@]}" "$KERNEL_DEFCONFIG"
 
-# ✅ FIX: Disable KCFI dan BTF untuk LLVM compatibility
-log "Disabling KCFI and BTF for LLVM compatibility..."
-config --disable CONFIG_CFI_CLANG 2>/dev/null || true
-config --disable CONFIG_KCFI 2>/dev/null || true
-config --disable CONFIG_DEBUG_INFO_BTF 2>/dev/null || true
-config --disable CONFIG_PAHOLE_KCONF 2>/dev/null || true
+# ✅ BEST PRACTICE: Config Fragment untuk disable KCFI & BTF
+log "Applying KCFI/BTF disable fragment..."
+cat > "$WORKDIR/fragment-cfi-btf.config" << EOF
+# Disable KCFI/CFI for LLVM compatibility
+CONFIG_CFI_CLANG=n
+CONFIG_KCFI=n
+# Disable BTF to avoid pahole error
+CONFIG_DEBUG_INFO_BTF=n
+CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=n
+CONFIG_PAHOLE_KCONF=n
+EOF
 
-# Re-apply config changes
+# Merge fragment dengan defconfig
+make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$WORKDIR/fragment-cfi-btf.config"
 make "${MAKE_ARGS[@]}" olddefconfig
 
+# Merge additional configs jika ada
 if [ "$DEFCONFIG_TO_MERGE" ]; then
-  log "Merging configs..."
-  if [ -f "scripts/kconfig/merge_config.sh" ]; then
-    for config in $DEFCONFIG_TO_MERGE; do
-      make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh "$config"
-    done
-  else
-    error "scripts/kconfig/merge_config.sh does not exist in the kernel source"
-  fi
+  log "Merging additional configs..."
+  for config in $DEFCONFIG_TO_MERGE; do
+    make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$config"
+  done
   make "${MAKE_ARGS[@]}" olddefconfig
 fi
 
-# Upload defconfig if we are doing defconfig
+# Upload defconfig if needed
 if [ "$TODO" == "defconfig" ]; then
   log "Uploading defconfig..."
   upload_file "$OUTDIR/.config"
   exit 0
 fi
+
+# Build kernel
+log "Building kernel..."
+make "${MAKE_ARGS[@]}"
 
 # Build the actual kernel
 log "Building kernel..."
