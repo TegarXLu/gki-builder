@@ -429,7 +429,21 @@ cd "$WORKDIR"
 cd "$WORKDIR"
 
 # Clone AnyKernel
-log "Cloning anykernel from $(simplify_gh_url "$ANYKERNEL_REPO")"git clone -q --depth=1 "$ANYKERNEL_REPO" -b "$ANYKERNEL_BRANCH" anykernel
+log "Cloning anykernel from $(simplify_gh_url "$ANYKERNEL_REPO")"
+git clone -q --depth=1 "$ANYKERNEL_REPO" -b "$ANYKERNEL_BRANCH" anykernel
+
+# ✅ FIX: Verify clone succeeded
+if [ ! -d "$WORKDIR/anykernel" ]; then
+  error "AnyKernel clone failed!"
+  exit 1
+fi
+
+if [ ! -f "$WORKDIR/anykernel/anykernel.sh" ]; then
+  log "WARNING: anykernel.sh not found, checking directory contents..."
+  ls -la "$WORKDIR/anykernel/"
+  error "anykernel.sh not found! Check ANYKERNEL_REPO and ANYKERNEL_BRANCH."
+  exit 1
+fi
 
 # Set kernel string in anykernel
 if [ "$STATUS" == "BETA" ]; then
