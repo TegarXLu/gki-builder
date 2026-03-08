@@ -290,6 +290,7 @@ if [ $(echo "$LINUX_VERSION_CODE" | head -c1) -eq 6 ]; then
   MAKE_ARGS=(
     LLVM=1
     LTO=full
+    LLVM_IAS=1
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
     CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
@@ -300,7 +301,6 @@ else
   MAKE_ARGS=(
     LLVM=1
     LTO=full
-    LLVM_IAS=1
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
     CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
