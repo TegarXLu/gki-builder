@@ -28,7 +28,7 @@ fi
 if [ "$KVER" == "6.6" ]; then
   KERNEL_REPO="https://github.com/TegarXLu/capybara-aosp-gki"
   ANYKERNEL_BRANCH="main"
-  KERNEL_BRANCH="susfs-6.6.89-capybara-gki-1.0"
+  KERNEL_BRANCH="capybara-gki-2.0"
 elif [ "$KVER" == "6.1" ]; then
   KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-6.1.git"
   ANYKERNEL_BRANCH="master"
