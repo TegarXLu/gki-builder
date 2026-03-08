@@ -348,6 +348,16 @@ EOF
 log "Generating config..."
 make "${MAKE_ARGS[@]}" "$KERNEL_DEFCONFIG"
 
+# ✅ FIX: Disable KCFI dan BTF untuk LLVM compatibility
+log "Disabling KCFI and BTF for LLVM compatibility..."
+config --disable CONFIG_CFI_CLANG 2>/dev/null || true
+config --disable CONFIG_KCFI 2>/dev/null || true
+config --disable CONFIG_DEBUG_INFO_BTF 2>/dev/null || true
+config --disable CONFIG_PAHOLE_KCONF 2>/dev/null || true
+
+# Re-apply config changes
+make "${MAKE_ARGS[@]}" olddefconfig
+
 if [ "$DEFCONFIG_TO_MERGE" ]; then
   log "Merging configs..."
   if [ -f "scripts/kconfig/merge_config.sh" ]; then
@@ -359,6 +369,17 @@ if [ "$DEFCONFIG_TO_MERGE" ]; then
   fi
   make "${MAKE_ARGS[@]}" olddefconfig
 fi
+
+# Upload defconfig if we are doing defconfig
+if [ "$TODO" == "defconfig" ]; then
+  log "Uploading defconfig..."
+  upload_file "$OUTDIR/.config"
+  exit 0
+fi
+
+# Build the actual kernel
+log "Building kernel..."
+make "${MAKE_ARGS[@]}"
 
 # Upload defconfig if we are doing defconfig
 if [ "$TODO" == "defconfig" ]; then
