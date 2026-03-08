@@ -145,7 +145,8 @@ fi
 
 # Clone GNU Assembler
 log "Cloning GNU Assembler..."
-GAS_DIR="$WORKDIR/gas"git clone --depth=1 -q \
+GAS_DIR="$WORKDIR/gas"
+git clone --depth=1 -q \
   https://android.googlesource.com/platform/prebuilts/gas/linux-x86 \
   -b main \
   "$GAS_DIR"
