@@ -381,17 +381,6 @@ fi
 log "Building kernel..."
 make "${MAKE_ARGS[@]}"
 
-# Upload defconfig if we are doing defconfig
-if [ "$TODO" == "defconfig" ]; then
-  log "Uploading defconfig..."
-  upload_file "$OUTDIR/.config"
-  exit 0
-fi
-
-# Build the actual kernel
-log "Building kernel..."
-make "${MAKE_ARGS[@]}"
-
 # Check KMI Function symbol
 if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
   "$KMI_CHECK" "$KSRC/android/abi_gki_aarch64.stg" "$MODULE_SYMVERS" || true
