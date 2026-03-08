@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Define target defconfig location
-DEFCONFIG="arch/arm64/configs/rodin_defconfig"
+DEFCONFIG="arch/arm64/configs/capybara_defconfig"
 
 echo "⚙️ Added KSU & SuSFS configuration"
 
