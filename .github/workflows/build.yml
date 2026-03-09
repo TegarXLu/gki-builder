@@ -195,7 +195,8 @@ jobs:
           free -h
           swapon --show
 
-      - name: Run Build Script        env:
+      - name: Run Build Script        
+        env:
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
