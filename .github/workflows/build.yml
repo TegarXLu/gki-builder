@@ -66,8 +66,8 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 360    
+    runs-on: ubuntu-24.04  # ✅ Use latest Ubuntu for better toolchain support
+    timeout-minutes: 360   # ✅ 6 hour timeout (GitHub Actions limit)
 
     steps:
       - name: Checkout source
@@ -75,6 +75,9 @@ jobs:
         with:
           fetch-depth: 1
 
+      # =============================================================================
+      # ✅ OPTIMIZATION 1: Setup ccache for faster rebuilds
+      # =============================================================================
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -84,6 +87,9 @@ jobs:
             ${{ runner.os }}-ccache-
           max-size: 2G
 
+      # =============================================================================
+      # ✅ OPTIMIZATION 2: Cache Clang toolchain
+      # =============================================================================
       - name: Cache Clang
         uses: actions/cache@v4
         id: cache-clang
@@ -92,6 +98,9 @@ jobs:
           key: ${{ runner.os }}-clang-${{ hashFiles('build.sh') }}
           restore-keys: |            ${{ runner.os }}-clang-
 
+      # =============================================================================
+      # ✅ OPTIMIZATION 3: Cache GNU Assembler
+      # =============================================================================
       - name: Cache GNU Assembler
         uses: actions/cache@v4
         id: cache-gas
@@ -149,6 +158,9 @@ jobs:
             exit $ret
           fi
 
+      # =============================================================================
+      # ✅ OPTIMIZATION 4: Complete dependencies + ccache
+      # =============================================================================
       - name: Install Dependencies
         run: |
           sudo apt-get update
@@ -166,6 +178,9 @@ jobs:
           echo "CC=$CC" >> $GITHUB_ENV
           echo "CXX=$CXX" >> $GITHUB_ENV
 
+      # =============================================================================
+      # ✅ OPTIMIZATION 5: Optimized swap for LTO builds
+      # =============================================================================
       - name: Enable optimized swap
         run: |
           sudo swapoff -a
@@ -190,6 +205,7 @@ jobs:
           TODO: ${{ inputs.TODO }}
           STATUS: ${{ env.STATUS }}
           KVER: ${{ inputs.KERNEL_VERSION }}
+          # ✅ ccache environment
           CCACHE_DIR: ${{ env.CCACHE_DIR }}
           CC: ${{ env.CC }}
           CXX: ${{ env.CXX }}
@@ -206,6 +222,9 @@ jobs:
           echo "=== CCACHE STATS ==="
           ccache -s || true
 
+      # =============================================================================
+      # ✅ OPTIMIZATION 6: Better artifact handling
+      # =============================================================================
       - name: Upload Artifacts (ZIP & IMG)
         uses: actions/upload-artifact@v4
         if: always()
@@ -233,6 +252,9 @@ jobs:
           path: build.log
           retention-days: 7
 
+      # =============================================================================
+      # ✅ OPTIMIZATION 7: ccache summary
+      # =============================================================================
       - name: Show ccache summary
         if: always()
         run: |
