@@ -97,7 +97,8 @@ jobs:
         with:
           path: ${{ github.workspace }}/clang
           key: ${{ runner.os }}-clang-${{ hashFiles('build.sh') }}
-          restore-keys: |            ${{ runner.os }}-clang-
+          restore-keys: |           
+          ${{ runner.os }}-clang-
 
       # =============================================================================
       # ✅ OPTIMIZATION 3: Cache GNU Assembler
