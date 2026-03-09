@@ -47,8 +47,7 @@ on:
       KSU_MANUAL_HOOK:
         description: Use KSU Manual Hooks?
         default: "false"
-        type: choice
-        options:
+        type: choice        options:
           - "true"
           - "false"
 
@@ -67,8 +66,8 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04  # ✅ Use latest Ubuntu for better toolchain support
-    timeout-minutes: 360   # ✅ 6 hour timeout (GitHub Actions limit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
 
     steps:
       - name: Checkout source
@@ -76,9 +75,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      # =============================================================================
-      # ✅ OPTIMIZATION 1: Setup ccache for faster rebuilds
-      # =============================================================================
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -88,9 +84,6 @@ jobs:
             ${{ runner.os }}-ccache-
           max-size: 2G
 
-      # =============================================================================
-      # ✅ OPTIMIZATION 2: Cache Clang toolchain
-      # =============================================================================
       - name: Cache Clang
         uses: actions/cache@v4
         id: cache-clang
@@ -99,15 +92,11 @@ jobs:
           key: ${{ runner.os }}-clang-${{ hashFiles('build.sh') }}
           restore-keys: ${{ runner.os }}-clang-
 
-      # =============================================================================
-      # ✅ OPTIMIZATION 3: Cache GNU Assembler
-      # =============================================================================
       - name: Cache GNU Assembler
         uses: actions/cache@v4
         id: cache-gas
         with:
-          path: ${{ github.workspace }}/gas
-          key: ${{ runner.os }}-gas-v1
+          path: ${{ github.workspace }}/gas          key: ${{ runner.os }}-gas-v1
           restore-keys: |
             ${{ runner.os }}-gas-
 
@@ -146,7 +135,8 @@ jobs:
             _error "Missing GH_TOKEN secret (GitHub PAT)"
           fi
 
-          if [[ $KSU == "no" && $KSU_SUSFS == "true" ]]; then              _error "Cannot use SuSFS without KernelSU"
+          if [[ $KSU == "no" && $KSU_SUSFS == "true" ]]; then
+            _error "Cannot use SuSFS without KernelSU"
           fi
           if [[ $KSU == "no" && $KSU_MANUAL_HOOK == "true" ]]; then
             _error "Cannot use KSU Manual Hooks without KernelSU!"
@@ -154,14 +144,10 @@ jobs:
           if [[ $KSU == "resukisu" && $KSU_SUSFS != "true" ]]; then
             _error "ReSukiSU build requires KSU_SUSFS to be true"
           fi
-
           if [[ $ret -gt 0 ]]; then
             exit $ret
           fi
 
-      # =============================================================================
-      # ✅ OPTIMIZATION 4: Complete dependencies + ccache
-      # =============================================================================
       - name: Install Dependencies
         run: |
           sudo apt-get update
@@ -171,7 +157,6 @@ jobs:
             libxml2-utils xsltproc unzip p7zip-full ccache
           pip install lxml
           
-          # Setup ccache environment
           export CCACHE_DIR="$HOME/.ccache"
           export CC="ccache clang"
           export CXX="ccache clang++"
@@ -179,9 +164,6 @@ jobs:
           echo "CC=$CC" >> $GITHUB_ENV
           echo "CXX=$CXX" >> $GITHUB_ENV
 
-      # =============================================================================
-      # ✅ OPTIMIZATION 5: Optimized swap for LTO builds
-      # =============================================================================
       - name: Enable optimized swap
         run: |
           sudo swapoff -a
@@ -195,7 +177,7 @@ jobs:
           free -h
           swapon --show
 
-      - name: Run Build Script        
+      - name: Run Build Script
         env:
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
@@ -207,26 +189,16 @@ jobs:
           TODO: ${{ inputs.TODO }}
           STATUS: ${{ env.STATUS }}
           KVER: ${{ inputs.KERNEL_VERSION }}
-          # ✅ ccache environment
           CCACHE_DIR: ${{ env.CCACHE_DIR }}
           CC: ${{ env.CC }}
           CXX: ${{ env.CXX }}
         run: |
-          export GIT_CLONE_PROTECTION_ACTIVE=false
-          chmod +x *.sh py/*.py
-          
-          # Show ccache stats before build
+          export GIT_CLONE_PROTECTION_ACTIVE=false          chmod +x *.sh py/*.py
           ccache -s || true
-          
           ./build.sh
-          
-          # Show ccache stats after build
           echo "=== CCACHE STATS ==="
           ccache -s || true
 
-      # =============================================================================
-      # ✅ OPTIMIZATION 6: Better artifact handling
-      # =============================================================================
       - name: Upload Artifacts (ZIP & IMG)
         uses: actions/upload-artifact@v4
         if: always()
@@ -246,6 +218,7 @@ jobs:
           path: artifacts/*.txt
           retention-days: 30
           compression-level: 9
+
       - name: Upload Build Log
         uses: actions/upload-artifact@v4
         if: failure()
@@ -254,9 +227,6 @@ jobs:
           path: build.log
           retention-days: 7
 
-      # =============================================================================
-      # ✅ OPTIMIZATION 7: ccache summary
-      # =============================================================================
       - name: Show ccache summary
         if: always()
         run: |
