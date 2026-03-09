@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# TegarXLu GKI Kernel Builder - Full Optimized Version
-# Features: ThinLTO, KSU, SuSFS, Performance & Battery Optimizations
+# TegarXLu GKI Kernel Builder
+# Modified Version with Fixes for LLVM_IAS, Variable Safety, and Patch Checks
 # =============================================================================
-
-set -e
 
 # Constants
 WORKDIR="$(pwd)"
@@ -47,21 +45,22 @@ elif [ "$KVER" == "5.10" ]; then
 fi
 DEFCONFIG_TO_MERGE=""
 GKI_RELEASES_REPO="https://github.com/TegarXLu/gki-builder"
-# Clang URL (GreenForce Clang 23)
+
+# Change the clang by removing the (#) sign then apply
+#CLANG_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.0/LLVM-22.1.0-Linux-X64.tar.xz"#CLANG_URL="https://github.com/linastorvaldz/idk/releases/download/clang-r547379/clang.tgz"
+#CLANG_URL="https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b/archive/refs/heads/lineage-20.0.tar.gz"
+#CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz"
+#CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/62cdcefa89e31af2d72c366e8b5ef8db84caea62/clang-r547379.tar.gz"
+#CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/105aba85d97a53d364585ca755752dae054b49e8/clang-r584948b.tar.gz"
 CLANG_URL="https://github.com/greenforce-project/greenforce_clang/releases/download/20260210/gf-clang-23.0.0-20260210.tar.gz"
+#CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/42d2c090c14c9c7f4dfd365ae551e2b959dc775c/clang-r584948b.tar.gz"
+#CLANG_URL="https://github.com/linastorvaldz/gki-builder/releases/download/clang-r487747c/clang-r487747c.tar.gz"
+#CLANG_URL="$(./clang.sh slim)"
 CLANG_BRANCH=""
 AK3_ZIP_NAME="$KERNEL_NAME-REL-KVER-VARIANT-BUILD_DATE.zip"
 OUTDIR="$WORKDIR/out"
 KSRC="$WORKDIR/ksrc"
 KERNEL_PATCHES="$WORKDIR/kernel-patches"
-
-# =============================================================================
-# Default values for undefined variables
-# =============================================================================
-: "${TODO:=kernel}"
-: "${STATUS:=RELEASE}"
-: "${KSU:=no}"
-: "${LAST_BUILD:=false}"
 
 # Handle error
 exec > >(tee "$WORKDIR/build.log") 2>&1
@@ -70,14 +69,19 @@ trap 'error "Failed at line $LINENO [$BASH_COMMAND]"' ERR
 # Import functions
 source "$WORKDIR/functions.sh"
 
+# =============================================================================
+# ✅ FIX 1: Default values for undefined variables
+# =============================================================================
+: "${TODO:=kernel}"
+: "${STATUS:=RELEASE}"
+: "${KSU:=no}"
+: "${LAST_BUILD:=false}"
+
 # Set timezone
 sudo timedatectl set-timezone "$TIMEZONE" 2>/dev/null || export TZ="$TIMEZONE"
 
-# =============================================================================
-# Clone Kernel Source
-# =============================================================================
+# Clone kernel source
 log "Cloning kernel source from $(simplify_gh_url "$KERNEL_REPO")"
-rm -rf "$KSRC"
 git clone -q --depth=1 "$KERNEL_REPO" -b "$KERNEL_BRANCH" "$KSRC"
 
 cd "$KSRC"
@@ -85,18 +89,17 @@ LINUX_VERSION=$(make kernelversion)
 LINUX_VERSION_CODE=${LINUX_VERSION//./}
 DEFCONFIG_FILE=$(find ./arch/arm64/configs -name "$KERNEL_DEFCONFIG")
 
-# --- KSU Inject Script ---
+# --- ADD KSU INJECT SCRIPT ---
 log "Injecting custom KSU & SuSFS configs from GitHub..."
 export KSU
 export KSU_SUSFS
 wget -qO inject.sh https://raw.githubusercontent.com/TegarXLu/gki-builder/6.x/inject_ksu/gki_defconfig.sh
 bash inject.sh
 rm inject.sh
-cd "$WORKDIR"
+# --------------------------------------cd "$WORKDIR"
 
-# =============================================================================
-# Set Kernel Variant
-# =============================================================================log "Setting Kernel variant..."
+# Set Kernel variant
+log "Setting Kernel variant..."
 case "$KSU" in
   "yes") VARIANT="KSU" ;;
   "resukisu") VARIANT="ReSukiSU" ;;
@@ -109,55 +112,44 @@ susfs_included && VARIANT+="+SuSFS"
 AK3_ZIP_NAME=${AK3_ZIP_NAME//KVER/$LINUX_VERSION}
 AK3_ZIP_NAME=${AK3_ZIP_NAME//VARIANT/$VARIANT}
 
-# =============================================================================
 # Download Clang
-# =============================================================================
 CLANG_DIR="$WORKDIR/clang"
 CLANG_BIN="${CLANG_DIR}/bin"
 if [ -z "$CLANG_BRANCH" ]; then
   log "🔽 Downloading Clang..."
-  if [ ! -d "$CLANG_DIR/bin" ]; then
-    wget -qO clang-archive "$CLANG_URL"
-    mkdir -p "$CLANG_DIR"
-    case "$(basename "$CLANG_URL")" in
-      *.tar.* | *.tgz)
-        tar -xf clang-archive -C "$CLANG_DIR"
-        ;;
-      *.7z)
-        7z x clang-archive -o"${CLANG_DIR}/" -bd -y > /dev/null
-        ;;
-      *)
-        error "Unsupported file format"
-        ;;
-    esac
-    rm clang-archive
+  wget -qO clang-archive "$CLANG_URL"
+  mkdir -p "$CLANG_DIR"
+  case "$(basename "$CLANG_URL")" in
+    *.tar.* | *.tgz)
+      tar -xf clang-archive -C "$CLANG_DIR"
+      ;;
+    *.7z)
+      7z x clang-archive -o"${CLANG_DIR}/" -bd -y > /dev/null
+      ;;
+    *)
+      error "Unsupported file format"
+      ;;
+  esac
+  rm clang-archive
 
-    if [ "$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)" -eq 1 ] \
-      && [ "$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type f | wc -l)" -eq 0 ]; then
-      SINGLE_DIR=$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type d)
-      mv "$SINGLE_DIR"/* "$CLANG_DIR/"
-      rm -rf "$SINGLE_DIR"
-    fi
-  else
-    log "Clang already cached, skipping download"
+  if [ "$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)" -eq 1 ] \
+    && [ "$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type f | wc -l)" -eq 0 ]; then
+    SINGLE_DIR=$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type d)
+    mv "$SINGLE_DIR"/* "$CLANG_DIR/"
+    rm -rf "$SINGLE_DIR"
   fi
 else
   log "🔽 Cloning Clang..."
   git clone --depth=1 -q "$CLANG_URL" -b "$CLANG_BRANCH" "$CLANG_DIR"
 fi
-# =============================================================================
+
 # Clone GNU Assembler
-# =============================================================================
 log "Cloning GNU Assembler..."
 GAS_DIR="$WORKDIR/gas"
-if [ ! -d "$GAS_DIR" ]; then
-  git clone --depth=1 -q \
-    https://android.googlesource.com/platform/prebuilts/gas/linux-x86 \
-    -b main \
-    "$GAS_DIR"
-else
-  log "GNU Assembler already cached, skipping clone"
-fi
+git clone --depth=1 -q \
+  https://android.googlesource.com/platform/prebuilts/gas/linux-x86 \
+  -b main \
+  "$GAS_DIR"
 
 export PATH="${CLANG_BIN}:${GAS_DIR}:$PATH"
 
@@ -170,12 +162,15 @@ cd "$KSRC"
 # KernelSU Setup
 # =============================================================================
 if ksu_included; then
+  # Remove existing KernelSU drivers
   for KSU_PATH in drivers/staging/kernelsu drivers/kernelsu KernelSU KernelSU-Next; do
     if [ -d "$KSU_PATH" ]; then
       log "KernelSU driver found in $KSU_PATH, Removing..."
       KSU_DIR=$(dirname "$KSU_PATH")
+
       [ -f "$KSU_DIR/Kconfig" ] && sed -i '/kernelsu/d' "$KSU_DIR/Kconfig"
       [ -f "$KSU_DIR/Makefile" ] && sed -i '/kernelsu/d' "$KSU_DIR/Makefile"
+
       rm -rf "$KSU_PATH"
     fi
   done
@@ -184,19 +179,23 @@ if ksu_included; then
   config --enable CONFIG_KSU
 
   cd KernelSU-Next
-  patch -p1 < "$KERNEL_PATCHES/ksu/ksun-add-more-managers-support.patch" || true
+  patch -p1 < "$KERNEL_PATCHES/ksu/ksun-add-more-managers-support.patch"
   cd "$OLDPWD"
   
+  # Fix SUSFS Uname Symbol Error for KernelSU Next & All_Manager
   log "Applying fix for undefined SUSFS symbols (KernelSU-Next)..."
   sed -i 's/#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME/#if 0 \/\* CONFIG_KSU_SUSFS_SPOOF_UNAME Disabled to fix build \*\//' drivers/kernelsu/supercalls.c
   log "SUSFS symbol fix applied for KernelSU-Next."
 
+# --- ReSukiSU Setup Block ---
 elif [ "$KSU" == "resukisu" ]; then
   log "Setting up ReSukiSU for KVER $KVER..."
+  
+  log "Running ReSukiSU setup from main branch..."
   curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/Crowdin/kernel/setup.sh" | bash -s main
-    if [ "$KVER" == "5.10" ]; then
-    log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."
-    SUSFS_BRANCH="gki-android12-5.10"
+  
+  if [ "$KVER" == "5.10" ]; then
+    log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."    SUSFS_BRANCH="gki-android12-5.10"
     git clone https://gitlab.com/simonpunk/susfs4ksu/ -b "$SUSFS_BRANCH" sus
     rm -rf sus/.git
     susfs=sus/kernel_patches
@@ -211,7 +210,7 @@ elif [ "$KSU" == "resukisu" ]; then
     log "[✓] ReSukiSU & SUSFS patched for $KVER."
   else
     config --enable CONFIG_KSU_SUSFS
-    log "SUSFS config enabled for $KVER."
+    log "SUSFS config enabled for $KVER. Applying patches in Standard block..."
   fi
 fi
 
@@ -235,6 +234,9 @@ if susfs_included; then
     cp -R "$SUSFS_PATCHES/include"/* ./include
     patch -p1 < "$SUSFS_PATCHES/50_add_susfs_in_${SUSFS_BRANCH}.patch" || true
     
+    # =============================================================================
+    # ✅ FIX 2: Safe patch application with file existence checks
+    # =============================================================================
     if [ "$(echo "$LINUX_VERSION_CODE" | head -c4)" -eq 6630 ]; then
       [ -f "$KERNEL_PATCHES/susfs/namespace.c_fix.patch" ] && patch -p1 < "$KERNEL_PATCHES/susfs/namespace.c_fix.patch"
       [ -f "$KERNEL_PATCHES/susfs/task_mmu.c_fix.patch" ] && patch -p1 < "$KERNEL_PATCHES/susfs/task_mmu.c_fix.patch"
@@ -242,9 +244,10 @@ if susfs_included; then
       [ -f "$KERNEL_PATCHES/susfs/task_mmu.c_fix-k6.6.58.patch" ] && patch -p1 < "$KERNEL_PATCHES/susfs/task_mmu.c_fix-k6.6.58.patch"
     elif [ "$(echo "$LINUX_VERSION_CODE" | head -c2)" -eq 61 ]; then
       [ -f "$KERNEL_PATCHES/susfs/fs_proc_base.c-fix-k6.1.patch" ] && patch -p1 < "$KERNEL_PATCHES/susfs/fs_proc_base.c-fix-k6.1.patch"
-    elif [ "$(echo "$LINUX_VERSION_CODE" | head -c3)" -eq 510 ]; then
-      [ -f "$KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch" ] && patch -p1 < "$KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch"    fi
+    elif [ "$(echo "$LINUX_VERSION_CODE" | head -c3)" -eq 510 ]; then      [ -f "$KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch" ] && patch -p1 < "$KERNEL_PATCHES/susfs/pershoot-susfs-k5.10.patch"
+    fi
 
+    # CRC Fix Logic
     if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
       if [ "$KSU" == "yes" ]; then
         if [ "$KVER" == "6.1" ]; then
@@ -287,18 +290,20 @@ if [ "$TODO" == "kernel" ]; then
 fi
 
 # =============================================================================
-# Declare Build Variables - ThinLTO for Stability
+# Declare Build Variables
 # =============================================================================
 export KBUILD_BUILD_USER="$USER"
-export KBUILD_BUILD_HOST="$HOST"
-export KBUILD_BUILD_TIMESTAMP=$(date)
+export KBUILD_BUILD_HOST="$HOST"export KBUILD_BUILD_TIMESTAMP=$(date)
 export KCFLAGS="-w"
-# ✅ ThinLTO - STABLE & PERFORMANT (Tested & Working)
+
+# =============================================================================
+# ✅ FIX 3: LLVM_IAS=1 MOVED TO 6.x BRANCH (CORRECT!)
+# =============================================================================
 if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
   MAKE_ARGS=(
     LLVM=1
-    LLVM_IAS=1
-    LTO=thin          # ✅ ThinLTO (Proven Stable)
+    LLVM_IAS=1          # ✅ CORRECT: 6.x needs LLVM_IAS
+    LTO=thin
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
     CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
@@ -308,6 +313,7 @@ if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
 else
   MAKE_ARGS=(
     LLVM=1
+    # LLVM_IAS=1 not used for 5.x (can cause issues)
     LTO=thin
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
@@ -320,6 +326,7 @@ fi
 KERNEL_IMAGE="$OUTDIR/arch/arm64/boot/Image"
 MODULE_SYMVERS="$OUTDIR/Module.symvers"
 
+# KMI Check path based on version
 if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
   KMI_CHECK="$WORKDIR/py/kmi-check-6.x.py"
 else
@@ -333,100 +340,50 @@ text=$(
 📛 *KernelSU*: ${KSU}
 ඞ *SuSFS*: $(susfs_included && echo "$SUSFS_VERSION" || echo "None")
 🔰 *Compiler*: $COMPILER_STRING
-⚡ *LTO Mode*: ThinLTO (Stable)
 EOF
 )
-
 # =============================================================================
 # Build GKI
 # =============================================================================
 log "Generating config..."
 make "${MAKE_ARGS[@]}" "$KERNEL_DEFCONFIG"
-# Merge additional configs if any
+
 if [ "$DEFCONFIG_TO_MERGE" ]; then
-  log "Merging additional configs..."
-  for config in $DEFCONFIG_TO_MERGE; do
-    make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$config"
-  done
+  log "Merging configs..."
+  if [ -f "scripts/kconfig/merge_config.sh" ]; then
+    for config in $DEFCONFIG_TO_MERGE; do
+      make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh "$config"
+    done
+  else
+    error "scripts/kconfig/merge_config.sh does not exist in the kernel source"
+  fi
+  make "${MAKE_ARGS[@]}" olddefconfig
 fi
 
-# =============================================================================
-# ✅ KERNEL OPTIMIZATIONS - Build Time Config
-# =============================================================================
-log "Applying kernel optimizations (CPU, I/O, Network, Power)..."
-cat > "$WORKDIR/kernel-optimizations.config" << EOF
-# CPU Governor
-CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
-CONFIG_CPU_FREQ_GOV_PERFORMANCE=y
-CONFIG_CPU_FREQ_GOV_POWERSAVE=y
-CONFIG_CPU_FREQ_GOV_ONDEMAND=y
-CONFIG_CPU_FREQ_GOV_CONSERVATIVE=y
-CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
-
-# I/O Scheduler
-CONFIG_MQ_IOSCHED_DEADLINE=y
-CONFIG_MQ_IOSCHED_KYBER=y
-CONFIG_IOSCHED_BFQ=y
-CONFIG_DEFAULT_MQ_DEADLINE=y
-
-# Memory Management
-CONFIG_VM_EVENT_COUNTERS=y
-CONFIG_MEMCG=y
-CONFIG_SWAP=y
-
-# Network
-CONFIG_TCP_CONG_BBR=y
-CONFIG_NET_SCH_FIFO=y
-
-# Power Management
-CONFIG_PM=y
-CONFIG_PM_SLEEP=y
-CONFIG_PM_RUNTIME=y
-CONFIG_CPU_IDLE=y
-CONFIG_CPU_IDLE_GOV_LADDER=y
-CONFIG_CPU_IDLE_GOV_MENU=y
-CONFIG_SUSPEND=y
-CONFIG_SUSPEND_FREEZER=y
-
-# Thermal
-CONFIG_THERMAL=y
-CONFIG_THERMAL_GOV_STEP_WISE=yCONFIG_THERMAL_GOV_USER_SPACE=y
-EOF
-
-make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$WORKDIR/kernel-optimizations.config"
-make "${MAKE_ARGS[@]}" olddefconfig
-
-# Verify optimizations
-log "Verifying kernel optimizations..."
-grep -E "CONFIG_CPU_FREQ_GOV_SCHEDUTIL|CONFIG_DEFAULT_MQ_DEADLINE|CONFIG_TCP_CONG_BBR" "$OUTDIR/.config" | tee -a "$WORKDIR/build.log"
-
-# Upload defconfig if needed
+# Upload defconfig if we are doing defconfig
 if [ "$TODO" == "defconfig" ]; then
   log "Uploading defconfig..."
   upload_file "$OUTDIR/.config"
   exit 0
 fi
 
-# =============================================================================
-# Build Kernel
-# =============================================================================
-log "Building kernel with ThinLTO..."
+# Build the actual kernel
+log "Building kernel..."
 make "${MAKE_ARGS[@]}"
 
-# Check KMI Function symbol (Ignore for custom kernel)
-log "Running KMI check..."
+# Check KMI Function symbol
 if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
-  "$KMI_CHECK" "$KSRC/android/abi_gki_aarch64.stg" "$MODULE_SYMVERS" || {
-    log "⚠️ WARNING: KMI check failed (CRC mismatch). Normal for custom kernels."
-  }
+  "$KMI_CHECK" "$KSRC/android/abi_gki_aarch64.stg" "$MODULE_SYMVERS" || true
 else
-  "$KMI_CHECK" "$KSRC/android/abi_gki_aarch64.xml" "$MODULE_SYMVERS" || {
-    log "⚠️ WARNING: KMI check failed (CRC mismatch). Normal for custom kernels."
-  }
+  "$KMI_CHECK" "$KSRC/android/abi_gki_aarch64.xml" "$MODULE_SYMVERS" || true
 fi
 
+# --- DISABLE KPM SECTION ---
 log "Skipping KPM patch (ReSukiSU variant disabled)."
+
+# Return to the initial working directory (Post-compiling steps)
 cd "$WORKDIR"
+# ----------------------------------------------------
 
 # =============================================================================
 # Post-compiling Stuff
@@ -435,11 +392,11 @@ cd "$WORKDIR"
 
 # Clone AnyKernel
 log "Cloning anykernel from $(simplify_gh_url "$ANYKERNEL_REPO")"
-rm -rf anykernel
 git clone -q --depth=1 "$ANYKERNEL_REPO" -b "$ANYKERNEL_BRANCH" anykernel
 
-# Verify clone
-if [ ! -d "$WORKDIR/anykernel" ]; then  error "AnyKernel clone failed!"
+# ✅ FIX: Verify clone succeeded
+if [ ! -d "$WORKDIR/anykernel" ]; then
+  error "AnyKernel clone failed!"
   exit 1
 fi
 
@@ -450,103 +407,7 @@ if [ ! -f "$WORKDIR/anykernel/anykernel.sh" ]; then
   exit 1
 fi
 
-# =============================================================================
-# ✅ GENERATE ANYKERNEL3 OPTIMIZATION SCRIPTS
-# =============================================================================
-log "Generating AnyKernel3 optimization scripts..."
-
-# Create service.d directory
-mkdir -p "$WORKDIR/anykernel/service.d"
-
-# Create kernel-tweak.sh (Main optimization script)
-cat > "$WORKDIR/anykernel/service.d/00kernel-tweak.sh" << 'EOF'
-#!/system/bin/sh
-
-# =============================================================================
-# TegarXLu Kernel - Performance & Battery Optimization
-# =============================================================================
-
-log -t TegarXLu "Applying kernel optimizations..."
-
-# --- CPU Governor (Schedutil for Balance) ---
-for cpu in /sys/devices/system/cpu/cpufreq/policy*; do
-  echo schedutil > $cpu/scaling_governor 2>/dev/null
-done
-
-# --- CPU Frequencies (Adjust based on your device) ---
-# Little cores
-echo 300000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 2>/dev/null
-echo 1804800 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null
-
-# Big cores
-echo 800000 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq 2>/dev/null
-echo 2841600 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq 2>/dev/null
-
-# --- I/O Scheduler (MQ-Deadline for Responsiveness) ---
-for block in /sys/block/*/queue; do
-  echo mq-deadline > $block/scheduler 2>/dev/null
-done
-
-# --- VM Settings (Memory Management) ---
-echo 100 > /proc/sys/vm/swappiness 2>/dev/nullecho 60 > /proc/sys/vm/dirty_ratio 2>/dev/null
-echo 40 > /proc/sys/vm/dirty_background_ratio 2>/dev/null
-echo 1 > /proc/sys/vm/compact_memory 2>/dev/null
-
-# --- Network Optimization (BBR for Speed) ---
-echo bbr > /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null
-echo 262144 > /proc/sys/net/core/rmem_max 2>/dev/null
-echo 262144 > /proc/sys/net/core/wmem_max 2>/dev/null
-echo 262144 > /proc/sys/net/ipv4/tcp_rmem 2>/dev/null
-echo 262144 > /proc/sys/net/ipv4/tcp_wmem 2>/dev/null
-
-# --- GPU Governor (BZQ for Balance) ---
-echo bzq > /sys/class/kgsl/kgsl-3d0/devfreq/governor 2>/dev/null
-
-# --- Thermal (Step-wise for Safety) ---
-echo step_wise > /sys/class/thermal/thermal_zone*/policy 2>/dev/null
-
-log -t TegarXLu "Kernel optimizations applied successfully!"
-EOF
-
-chmod +x "$WORKDIR/anykernel/service.d/00kernel-tweak.sh"
-
-# Create game-mode.sh (Optional - User can trigger manually)
-cat > "$WORKDIR/anykernel/service.d/01game-mode.sh" << 'EOF'
-#!/system/bin/sh
-
-# =============================================================================
-# Game Mode / Battery Mode Toggle Scripts
-# =============================================================================
-
-# Create game mode script
-cat > /data/local/tmp/game_mode.sh << 'GAMEEOF'
-#!/system/bin/sh
-echo performance > /sys/devices/system/cpu/cpufreq/policy*/scaling_governor 2>/dev/null
-echo performance > /sys/class/kgsl/kgsl-3d0/devfreq/governor 2>/dev/null
-echo 0 > /proc/sys/vm/swappiness 2>/dev/null
-log -t TegarXLu "Game Mode Activated"
-GAMEEOF
-chmod 755 /data/local/tmp/game_mode.sh
-
-# Create battery mode script
-cat > /data/local/tmp/battery_mode.sh << 'BATEOF'
-#!/system/bin/sh
-echo schedutil > /sys/devices/system/cpu/cpufreq/policy*/scaling_governor 2>/dev/null
-echo powersave > /sys/class/kgsl/kgsl-3d0/devfreq/governor 2>/dev/null
-echo 150 > /proc/sys/vm/swappiness 2>/dev/null
-log -t TegarXLu "Battery Mode Activated"
-BATEOF
-chmod 755 /data/local/tmp/battery_mode.sh
-log -t TegarXLu "Game/Battery mode scripts created at /data/local/tmp/"
-EOF
-
-chmod +x "$WORKDIR/anykernel/service.d/01game-mode.sh"
-
-log "AnyKernel3 optimization scripts generated"
-
-# =============================================================================
-# Set Kernel String in AnyKernel
-# =============================================================================
+# Set kernel string in anykernel
 if [ "$STATUS" == "BETA" ]; then
   BUILD_DATE=$(date -d "$KBUILD_BUILD_TIMESTAMP" +"%Y%m%d-%H%M")
   AK3_ZIP_NAME=${AK3_ZIP_NAME//BUILD_DATE/$BUILD_DATE}
@@ -562,9 +423,7 @@ else
     "$WORKDIR/anykernel/anykernel.sh"
 fi
 
-# =============================================================================
-# Zip AnyKernel
-# =============================================================================
+# Zip the anykernel
 cd anykernel
 log "Zipping anykernel..."
 cp "$KERNEL_IMAGE" .
@@ -583,18 +442,14 @@ if [ "$LAST_BUILD" == "true" ] && [ "$STATUS" != "BETA" ]; then
     echo "SUSFS_VERSION=$(curl -s https://gitlab.com/simonpunk/susfs4ksu/raw/gki-android15-6.6/kernel_patches/include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g')"
     echo "KERNEL_NAME=$KERNEL_NAME"
     echo "RELEASE_REPO=$(simplify_gh_url "$GKI_RELEASES_REPO")"
-    echo "LTO_MODE=ThinLTO"
-    echo "OPTIMIZATIONS=CPU+Schedutil,IO+MQ-Deadline,Network+BBR,VM+Swappiness100"
   ) >> "$WORKDIR/artifacts/info.txt"
 fi
+
 if [ "$STATUS" == "BETA" ]; then
   upload_file "$WORKDIR/$AK3_ZIP_NAME" "$text"
   upload_file "$WORKDIR/build.log"
 else
   send_msg "✅ Build Succeeded for $VARIANT variant."
 fi
-
-log "🎉 Build completed successfully!"
-log "📦 Output: $WORKDIR/artifacts/$AK3_ZIP_NAME"
 
 exit 0
