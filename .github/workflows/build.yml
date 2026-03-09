@@ -47,7 +47,8 @@ on:
       KSU_MANUAL_HOOK:
         description: Use KSU Manual Hooks?
         default: "false"
-        type: choice        options:
+        type: choice        
+        options:
           - "true"
           - "false"
 
