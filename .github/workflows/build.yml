@@ -137,7 +137,8 @@ jobs:
             _error "Missing GH_TOKEN secret (GitHub PAT)"
           fi
 
-          if [[ $KSU == "no" && $KSU_SUSFS == "true" ]]; then              _error "Cannot use SuSFS without KernelSU"
+          if [[ $KSU == "no" && $KSU_SUSFS == "true" ]]; then
+            _error "Cannot use SuSFS without KernelSU"
           fi
           if [[ $KSU == "no" && $KSU_MANUAL_HOOK == "true" ]]; then
             _error "Cannot use KSU Manual Hooks without KernelSU!"
