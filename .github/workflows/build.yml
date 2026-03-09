@@ -47,8 +47,7 @@ on:
       KSU_MANUAL_HOOK:
         description: Use KSU Manual Hooks?
         default: "false"
-        type: choice
-        options:
+        type: choice        options:
           - "true"
           - "false"
 
@@ -67,7 +66,8 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360    
 
     steps:
       - name: Checkout source
@@ -75,12 +75,36 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-ccache-${{ inputs.KERNEL_VERSION }}-${{ inputs.KSU }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ inputs.KERNEL_VERSION }}-
+            ${{ runner.os }}-ccache-
+          max-size: 2G
+
+      - name: Cache Clang
+        uses: actions/cache@v4
+        id: cache-clang
+        with:
+          path: ${{ github.workspace }}/clang
+          key: ${{ runner.os }}-clang-${{ hashFiles('build.sh') }}
+          restore-keys: |            ${{ runner.os }}-clang-
+
+      - name: Cache GNU Assembler
+        uses: actions/cache@v4
+        id: cache-gas
+        with:
+          path: ${{ github.workspace }}/gas
+          key: ${{ runner.os }}-gas-v1
+          restore-keys: |
+            ${{ runner.os }}-gas-
+
       - name: Determine Build Status
         run: |
-          # Jika STATUS dikirim dari workflow luar (release.yml), gunakan itu
           if [ -n "${{ inputs.STATUS }}" ]; then
             echo "STATUS=${{ inputs.STATUS }}" >> $GITHUB_ENV
-          # Logika Default (Jika tidak dikirim, cek trigger manual/otomatis)
           elif [ "${{ toJson(github.event.inputs) }}" == "null" ]; then
             echo "STATUS=RELEASE" >> $GITHUB_ENV
           else
@@ -89,9 +113,9 @@ jobs:
 
       - name: Validate Inputs and Secrets
         env:
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }} # telegram chat id
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }} # telegram bot token
-          GH_TOKEN: ${{ secrets.GH_TOKEN }} # github token
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           KSU: ${{ inputs.KSU }}
           KSU_SUSFS: ${{ inputs.KSU_SUSFS }}
           KSU_MANUAL_HOOK: ${{ inputs.KSU_MANUAL_HOOK }}
@@ -102,7 +126,6 @@ jobs:
           }
 
           ret=0
-          # Check Secrets
           if [[ -z "$TG_CHAT_ID" ]]; then
             _error "Missing TG_CHAT_ID secret (Telegram Chat ID)"
           fi
@@ -113,16 +136,13 @@ jobs:
             _error "Missing GH_TOKEN secret (GitHub PAT)"
           fi
 
-          # KernelSU Validation (Supports yes, no, resukisu)
-          if [[ $KSU == "no" && $KSU_SUSFS == "true" ]]; then
-              _error "Cannot use SuSFS without KernelSU"
+          if [[ $KSU == "no" && $KSU_SUSFS == "true" ]]; then              _error "Cannot use SuSFS without KernelSU"
           fi
           if [[ $KSU == "no" && $KSU_MANUAL_HOOK == "true" ]]; then
             _error "Cannot use KSU Manual Hooks without KernelSU!"
           fi
-          # ReSukiSU membutuhkan SUSFS aktif untuk patch kompatibilitas 6.1/6.6
           if [[ $KSU == "resukisu" && $KSU_SUSFS != "true" ]]; then
-              _error "ReSukiSU build requires KSU_SUSFS to be true"
+            _error "ReSukiSU build requires KSU_SUSFS to be true"
           fi
 
           if [[ $ret -gt 0 ]]; then
@@ -132,8 +152,19 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gh bc bison flex libssl-dev libelf-dev dwarves cpio
+          sudo apt-get install -y \
+            gh bc bison flex libssl-dev libelf-dev dwarves cpio \
+            build-essential libncurses5-dev xz-utils libudev-dev \
+            libxml2-utils xsltproc unzip p7zip-full ccache
           pip install lxml
+          
+          # Setup ccache environment
+          export CCACHE_DIR="$HOME/.ccache"
+          export CC="ccache clang"
+          export CXX="ccache clang++"
+          echo "CCACHE_DIR=$CCACHE_DIR" >> $GITHUB_ENV
+          echo "CC=$CC" >> $GITHUB_ENV
+          echo "CXX=$CXX" >> $GITHUB_ENV
 
       - name: Enable optimized swap
         run: |
@@ -148,33 +179,64 @@ jobs:
           free -h
           swapon --show
 
-      - name: Run Build Script
-        env:
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }} # telegram chat id
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }} # telegram bot token
-          GH_TOKEN: ${{ secrets.GH_TOKEN }} # github token
+      - name: Run Build Script        env:
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           KSU: ${{ inputs.KSU }}
           KSU_SUSFS: ${{ inputs.KSU_SUSFS }}
           KSU_MANUAL_HOOK: ${{ inputs.KSU_MANUAL_HOOK }}
           LAST_BUILD: ${{ inputs.LAST_BUILD }}
           TODO: ${{ inputs.TODO }}
-          STATUS: ${{ env.STATUS }} # Mengambil nilai dari step Determine Build Status
-          KVER: ${{ inputs.KERNEL_VERSION }} # This passes the version to the script
+          STATUS: ${{ env.STATUS }}
+          KVER: ${{ inputs.KERNEL_VERSION }}
+          CCACHE_DIR: ${{ env.CCACHE_DIR }}
+          CC: ${{ env.CC }}
+          CXX: ${{ env.CXX }}
         run: |
           export GIT_CLONE_PROTECTION_ACTIVE=false
           chmod +x *.sh py/*.py
+          
+          # Show ccache stats before build
+          ccache -s || true
+          
           ./build.sh
+          
+          # Show ccache stats after build
+          echo "=== CCACHE STATS ==="
+          ccache -s || true
 
       - name: Upload Artifacts (ZIP & IMG)
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ${{ env.BASE_NAME }}-${{ github.run_number }}
           path: |
             artifacts/*.zip
             artifacts/*.img
+          retention-days: 30
+          compression-level: 9
 
       - name: Upload Artifacts (Info File)
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: info-${{ github.run_number }}
           path: artifacts/*.txt
+          retention-days: 30
+          compression-level: 9
+      - name: Upload Build Log
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-log-${{ github.run_number }}
+          path: build.log
+          retention-days: 7
+
+      - name: Show ccache summary
+        if: always()
+        run: |
+          echo "=== CCACHE SUMMARY ==="
+          ccache -s || true
+          echo "=== CCACHE SIZE ==="
+          du -sh $HOME/.ccache || true
