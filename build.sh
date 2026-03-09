@@ -303,7 +303,7 @@ if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
   MAKE_ARGS=(
     LLVM=1
     LLVM_IAS=1          # ✅ CORRECT: 6.x needs LLVM_IAS
-    LTO=full
+    LTO=thin
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
     CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
@@ -314,7 +314,7 @@ else
   MAKE_ARGS=(
     LLVM=1
     # LLVM_IAS=1 not used for 5.x (can cause issues)
-    LTO=full
+    LTO=thin
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
     CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
@@ -348,64 +348,26 @@ EOF
 log "Generating config..."
 make "${MAKE_ARGS[@]}" "$KERNEL_DEFCONFIG"
 
-# Merge additional configs jika ada
 if [ "$DEFCONFIG_TO_MERGE" ]; then
-  log "Merging additional configs..."
-  for config in $DEFCONFIG_TO_MERGE; do
-    make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$config"
-  done
+  log "Merging configs..."
+  if [ -f "scripts/kconfig/merge_config.sh" ]; then
+    for config in $DEFCONFIG_TO_MERGE; do
+      make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh "$config"
+    done
+  else
+    error "scripts/kconfig/merge_config.sh does not exist in the kernel source"
+  fi
+  make "${MAKE_ARGS[@]}" olddefconfig
 fi
 
-# =============================================================================
-# ✅ FORCE DISABLE KCFI & BTF (3 Methods Combined)
-# =============================================================================
-log "Force disabling KCFI/BTF..."
-
-# Method 1: Config Fragment
-cat > "$WORKDIR/fragment-disable.config" << EOF
-CONFIG_CFI_CLANG=n
-CONFIG_KCFI=n
-CONFIG_DEBUG_INFO_BTF=n
-CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=n
-CONFIG_PAHOLE_KCONF=n
-CONFIG_DEBUG_INFO=n
-CONFIG_DEBUG_INFO_DWARF5=n
-CONFIG_SHADOW_CALL_STACK=n
-CONFIG_LTO_CLANG=n
-EOF
-
-make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$WORKDIR/fragment-disable.config"
-make "${MAKE_ARGS[@]}" olddefconfig
-
-# Method 2: Force sed on .config
-log "Applying sed force-disable on .config..."
-sed -i 's/CONFIG_CFI_CLANG=y/# CONFIG_CFI_CLANG is not set/g' "$OUTDIR/.config"
-sed -i 's/CONFIG_KCFI=y/# CONFIG_KCFI is not set/g' "$OUTDIR/.config"
-sed -i 's/CONFIG_DEBUG_INFO_BTF=y/# CONFIG_DEBUG_INFO_BTF is not set/g' "$OUTDIR/.config"
-sed -i 's/CONFIG_PAHOLE_KCONF=y/# CONFIG_PAHOLE_KCONF is not set/g' "$OUTDIR/.config"
-sed -i 's/CONFIG_LTO_CLANG=y/# CONFIG_LTO_CLANG is not set/g' "$OUTDIR/.config"
-
-# Method 3: Finalize with olddefconfig
-make "${MAKE_ARGS[@]}" olddefconfig
-
-# Verify
-log "Verifying KCFI/BTF disabled..."
-if grep -q "CONFIG_KCFI=y" "$OUTDIR/.config"; then
-  error "KCFI still enabled! Build will fail."
-fi
-if grep -q "CONFIG_DEBUG_INFO_BTF=y" "$OUTDIR/.config"; then
-  error "BTF still enabled! Build will fail."
-fi
-log "✓ KCFI/BTF successfully disabled"
-
-# Upload defconfig if needed
+# Upload defconfig if we are doing defconfig
 if [ "$TODO" == "defconfig" ]; then
   log "Uploading defconfig..."
   upload_file "$OUTDIR/.config"
   exit 0
 fi
 
-# Build kernel
+# Build the actual kernel
 log "Building kernel..."
 make "${MAKE_ARGS[@]}"
 
