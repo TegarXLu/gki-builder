@@ -113,36 +113,96 @@ susfs_included && VARIANT+="+SuSFS"
 AK3_ZIP_NAME=${AK3_ZIP_NAME//KVER/$LINUX_VERSION}
 AK3_ZIP_NAME=${AK3_ZIP_NAME//VARIANT/$VARIANT}
 
-# Download Clang
+# =============================================================================
+# Download Clang - FIXED
+# =============================================================================
 CLANG_DIR="$WORKDIR/clang"
 CLANG_BIN="${CLANG_DIR}/bin"
-if [ -z "$CLANG_BRANCH" ]; then
-  log "🔽 Downloading Clang..."
-  wget -qO clang-archive "$CLANG_URL"
+
+# ✅ FIX 1: Check if Clang already exists and is valid
+if [ -d "$CLANG_DIR" ] && [ -f "$CLANG_BIN/clang" ] && [ -x "$CLANG_BIN/clang" ]; then
+  log "✅ Clang already exists and is valid, skipping download"
+else
+  log "🔽 Downloading Clang LLVM 22.1.1..."
+  rm -rf "$CLANG_DIR"
   mkdir -p "$CLANG_DIR"
+  
+  # Download with retry
+  for i in 1 2 3; do
+    if wget -q --show-progress -O clang-archive "$CLANG_URL"; then
+      log "✅ Clang downloaded successfully"
+      break
+    else
+      log "⚠️ Download attempt $i failed, retrying..."
+      rm -f clang-archive
+      sleep 5
+    fi
+  done
+  
+  if [ ! -f clang-archive ]; then
+    error "Failed to download Clang after 3 attempts!"
+    exit 1
+  fi
+  
+  # Extract based on file type
   case "$(basename "$CLANG_URL")" in
-    *.tar.* | *.tgz)
-      tar -xf clang-archive -C "$CLANG_DIR"
+    *.tar.xz)
+      log "Extracting .tar.xz..."
+      tar -xf clang-archive -C "$CLANG_DIR" --strip-components=1
+      ;;
+    *.tar.gz | *.tgz)
+      log "Extracting .tar.gz..."
+      tar -xzf clang-archive -C "$CLANG_DIR" --strip-components=1
       ;;
     *.7z)
-      7z x clang-archive -o"${CLANG_DIR}/" -bd -y > /dev/null
+      log "Extracting .7z..."
+      7z x clang-archive -o"$CLANG_DIR/" -bd -y > /dev/null
       ;;
     *)
-      error "Unsupported file format"
+      error "Unsupported Clang archive format!"
+      exit 1
       ;;
   esac
-  rm clang-archive
-
+  
+  rm -f clang-archive
+  
+  # ✅ FIX 2: Handle nested directory structure
   if [ "$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)" -eq 1 ] \
     && [ "$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type f | wc -l)" -eq 0 ]; then
     SINGLE_DIR=$(find "$CLANG_DIR" -mindepth 1 -maxdepth 1 -type d)
+    log "Flattening directory structure from $SINGLE_DIR..."
     mv "$SINGLE_DIR"/* "$CLANG_DIR/"
+    mv "$SINGLE_DIR"/.[!.]* "$CLANG_DIR/" 2>/dev/null || true
     rm -rf "$SINGLE_DIR"
   fi
-else
-  log "🔽 Cloning Clang..."
-  git clone --depth=1 -q "$CLANG_URL" -b "$CLANG_BRANCH" "$CLANG_DIR"
 fi
+
+# ✅ FIX 3: Verify Clang binaries exist and are executable
+if [ ! -f "$CLANG_BIN/clang" ]; then
+  log "⚠️ clang not found in bin/, searching..."
+  CLANG_BIN=$(find "$CLANG_DIR" -name "clang" -type f -executable | head -1 | xargs dirname)
+  if [ -z "$CLANG_BIN" ]; then
+    error "Clang binary not found! Extraction may have failed."
+    ls -la "$CLANG_DIR/"
+    exit 1
+  fi
+fi
+
+# ✅ FIX 4: Test if clang is executable
+if ! "$CLANG_BIN/clang" --version > /dev/null 2>&1; then
+  error "Clang binary is not executable! Check architecture compatibility."
+  file "$CLANG_BIN/clang"
+  exit 1
+fi
+
+# ✅ FIX 5: Export PATH BEFORE any make commands
+export PATH="${CLANG_BIN}:$PATH"
+
+# Verify clang is accessible
+log "Verifying Clang installation..."
+clang --version | head -1
+which clang
+which ld.lld
 
 # Clone GNU Assembler
 log "Cloning GNU Assembler..."
@@ -335,13 +395,13 @@ export KBUILD_BUILD_TIMESTAMP=$(date)
 export KCFLAGS="-O2 -mcpu=cortex-a76 -mtune=cortex-a76 -ffunction-sections -fdata-sections"
 
 # =============================================================================
-# ✅ FIX 3: LLVM_IAS=1 MOVED TO 6.x BRANCH (CORRECT!)
+# MAKE ARGS - FIXED
 # =============================================================================
 if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
   MAKE_ARGS=(
     LLVM=1
     LLVM_IAS=1
-    LTO=thin   
+    LTO=thin
     CLANG_TRIPLE=aarch64-linux-gnu-
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
