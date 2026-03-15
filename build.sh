@@ -187,15 +187,51 @@ if ksu_included; then
   sed -i 's/#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME/#if 0 \/\* CONFIG_KSU_SUSFS_SPOOF_UNAME Disabled to fix build \*\//' drivers/kernelsu/supercalls.c
   log "SUSFS symbol fix applied for KernelSU-Next."
 
-# --- ReSukiSU Setup Block ---
+# =============================================================================
+# ReSukiSU Setup - FIXED with Error Handling
+# =============================================================================
 elif [ "$KSU" == "resukisu" ]; then
   log "Setting up ReSukiSU for KVER $KVER..."
   
   log "Running ReSukiSU setup from main branch..."
-  curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/Crowdin/kernel/setup.sh" | bash -s main
+  
+  # ✅ FIX 1: Download script first, check if exists
+  REZUKISU_SETUP_URL="https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh"
+  
+  # Try main branch first, fallback to Crowdin
+  if ! curl -LSsf "$REZUKISU_SETUP_URL" -o /tmp/resukisu_setup.sh 2>/dev/null; then
+    log "⚠️ main branch not found, trying Crowdin branch..."
+    REZUKISU_SETUP_URL="https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/Crowdin/kernel/setup.sh"
+    if ! curl -LSsf "$REZUKISU_SETUP_URL" -o /tmp/resukisu_setup.sh 2>/dev/null; then
+      error "ReSukiSU setup script not found! Check repository URL."
+      exit 1
+    fi
+  fi
+  
+  # ✅ FIX 2: Verify script downloaded successfully
+  if [ ! -s /tmp/resukisu_setup.sh ]; then
+    error "ReSukiSU setup script is empty! Download failed."
+    exit 1
+  fi
+  
+  # ✅ FIX 3: Check for 404 in downloaded content
+  if grep -q "404: Not Found" /tmp/resukisu_setup.sh; then
+    error "ReSukiSU setup script returned 404! URL may be invalid."
+    exit 1
+  fi
+  
+  # ✅ FIX 4: Execute with error handling
+  if ! bash /tmp/resukisu_setup.sh main; then
+    error "ReSukiSU setup failed!"
+    rm -f /tmp/resukisu_setup.sh
+    exit 1
+  fi
+  
+  rm -f /tmp/resukisu_setup.sh
   
   if [ "$KVER" == "5.10" ]; then
-    log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."    SUSFS_BRANCH="gki-android12-5.10"
+    log "Applying SUSFS patches for GKI 5.10 (ReSukiSU Method)..."
+    SUSFS_BRANCH="gki-android12-5.10"
     git clone https://gitlab.com/simonpunk/susfs4ksu/ -b "$SUSFS_BRANCH" sus
     rm -rf sus/.git
     susfs=sus/kernel_patches
@@ -210,7 +246,7 @@ elif [ "$KSU" == "resukisu" ]; then
     log "[✓] ReSukiSU & SUSFS patched for $KVER."
   else
     config --enable CONFIG_KSU_SUSFS
-    log "SUSFS config enabled for $KVER. Applying patches in Standard block..."
+    log "SUSFS config enabled for $KVER."
   fi
 fi
 
