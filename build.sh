@@ -330,8 +330,9 @@ fi
 # Declare Build Variables
 # =============================================================================
 export KBUILD_BUILD_USER="$USER"
-export KBUILD_BUILD_HOST="$HOST"export KBUILD_BUILD_TIMESTAMP=$(date)
-export KCFLAGS="-w"
+export KBUILD_BUILD_HOST="$HOST"
+export KBUILD_BUILD_TIMESTAMP=$(date)
+export KCFLAGS="-O2 -mcpu=cortex-a76 -mtune=cortex-a76 -ffunction-sections -fdata-sections"
 
 # =============================================================================
 # ✅ FIX 3: LLVM_IAS=1 MOVED TO 6.x BRANCH (CORRECT!)
@@ -339,8 +340,9 @@ export KCFLAGS="-w"
 if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
   MAKE_ARGS=(
     LLVM=1
-    LLVM_IAS=1          # ✅ CORRECT: 6.x needs LLVM_IAS
-    LTO=thin
+    LLVM_IAS=1
+    LTO=thin   
+    CLANG_TRIPLE=aarch64-linux-gnu-
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
     CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
@@ -350,8 +352,8 @@ if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
 else
   MAKE_ARGS=(
     LLVM=1
-    # LLVM_IAS=1 not used for 5.x (can cause issues)
     LTO=thin
+    CLANG_TRIPLE=aarch64-linux-gnu-
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
     CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
@@ -385,17 +387,71 @@ EOF
 log "Generating config..."
 make "${MAKE_ARGS[@]}" "$KERNEL_DEFCONFIG"
 
+# Merge additional configs if any
 if [ "$DEFCONFIG_TO_MERGE" ]; then
-  log "Merging configs..."
-  if [ -f "scripts/kconfig/merge_config.sh" ]; then
-    for config in $DEFCONFIG_TO_MERGE; do
-      make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh "$config"
-    done
-  else
-    error "scripts/kconfig/merge_config.sh does not exist in the kernel source"
-  fi
-  make "${MAKE_ARGS[@]}" olddefconfig
+  log "Merging additional configs..."
+  for config in $DEFCONFIG_TO_MERGE; do
+    make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$config"
+  done
 fi
+
+# =============================================================================
+# ✅ TAMBAH INI - SMOOTH & BATTERY CONFIG FRAGMENT
+# =============================================================================
+log "Applying smooth & battery optimizations..."
+cat > "$WORKDIR/smooth-battery.config" << EOF
+# CPU Scheduler
+CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
+CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+CONFIG_SCHED_MC=y
+CONFIG_SCHED_SMT=y
+CONFIG_SCHED_CLUSTER=y
+
+# Power Management
+CONFIG_PM=y
+CONFIG_PM_SLEEP=y
+CONFIG_PM_RUNTIME=y
+CONFIG_CPU_IDLE=y
+CONFIG_CPU_IDLE_GOV_LADDER=y
+CONFIG_CPU_IDLE_GOV_MENU=y
+CONFIG_SUSPEND=y
+CONFIG_SUSPEND_FREEZER=y
+
+# Memory Optimization
+CONFIG_TRANSPARENT_HUGEPAGE=y
+CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
+CONFIG_ZSWAP=y
+CONFIG_ZPOOL=y
+CONFIG_ZSMALLOC=y
+CONFIG_FRONTSWAP=y
+
+# I/O Optimization
+CONFIG_MQ_IOSCHED_DEADLINE=y
+CONFIG_MQ_IOSCHED_KYBER=y
+CONFIG_IOSCHED_BFQ=y
+CONFIG_DEFAULT_MQ_DEADLINE=y
+
+# Network Optimization
+CONFIG_TCP_CONG_BBR=y
+CONFIG_TCP_CONG_CUBIC=y
+CONFIG_DEFAULT_TCP_CONG="bbr"
+
+# Preemption (Smoothness)
+CONFIG_PREEMPT_VOLUNTARY=y
+
+# Disable for Battery
+CONFIG_DEBUG_INFO_BTF=n
+CONFIG_PAHOLE_KCONF=n
+CONFIG_DEBUG_INFO=n
+EOF
+
+# Merge smooth-battery config
+make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$WORKDIR/smooth-battery.config"
+make "${MAKE_ARGS[@]}" olddefconfig
+
+# Verify config
+log "Verifying smooth & battery config..."
+grep -E "CONFIG_CPU_FREQ_GOV_SCHEDUTIL|CONFIG_DEFAULT_MQ_DEADLINE|CONFIG_TCP_CONG_BBR" "$OUTDIR/.config" | tee -a "$WORKDIR/build.log" || true
 
 # Upload defconfig if we are doing defconfig
 if [ "$TODO" == "defconfig" ]; then
