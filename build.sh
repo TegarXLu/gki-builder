@@ -392,7 +392,7 @@ fi
 export KBUILD_BUILD_USER="$USER"
 export KBUILD_BUILD_HOST="$HOST"
 export KBUILD_BUILD_TIMESTAMP=$(date)
-export KCFLAGS="-O2 -mcpu=cortex-a76 -mtune=cortex-a76 -ffunction-sections -fdata-sections"
+export KCFLAGS="-O2 -mcpu=cortex-a76"
 
 # =============================================================================
 # MAKE ARGS - FIXED
