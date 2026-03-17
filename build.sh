@@ -456,57 +456,51 @@ if [ "$DEFCONFIG_TO_MERGE" ]; then
 fi
 
 # =============================================================================
-# ✅ TAMBAH INI - SMOOTH & BATTERY CONFIG FRAGMENT
+# ✅ BALANCED CONFIG - Smooth + Cool (GANTI yang lama)
 # =============================================================================
-log "Applying smooth & battery optimizations..."
-cat > "$WORKDIR/smooth-battery.config" << EOF
-# CPU Scheduler
+log "Applying balanced performance config..."
+cat > "$WORKDIR/balanced-performance.config" << EOF
+# CPU Scheduler - MORE RESPONSIVE
 CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
 CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
 CONFIG_SCHED_MC=y
 CONFIG_SCHED_SMT=y
 CONFIG_SCHED_CLUSTER=y
 
-# Power Management
+# ✅ PREEMPT untuk smoothness (GANTI dari PREEMPT_VOLUNTARY)
+CONFIG_PREEMPT=y
+CONFIG_PREEMPT_COUNT=y
+CONFIG_PREEMPTION=y
+
+# Power Management - BALANCED
 CONFIG_PM=y
 CONFIG_PM_SLEEP=y
 CONFIG_PM_RUNTIME=y
 CONFIG_CPU_IDLE=y
-CONFIG_CPU_IDLE_GOV_LADDER=y
 CONFIG_CPU_IDLE_GOV_MENU=y
 CONFIG_SUSPEND=y
-CONFIG_SUSPEND_FREEZER=y
 
-# Memory Optimization
+# Memory - OPTIMIZED
 CONFIG_TRANSPARENT_HUGEPAGE=y
 CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
 CONFIG_ZSWAP=y
-CONFIG_ZPOOL=y
 CONFIG_ZSMALLOC=y
-CONFIG_FRONTSWAP=y
 
-# I/O Optimization
+# I/O - PERFORMANCE
 CONFIG_MQ_IOSCHED_DEADLINE=y
 CONFIG_MQ_IOSCHED_KYBER=y
-CONFIG_IOSCHED_BFQ=y
 CONFIG_DEFAULT_MQ_DEADLINE=y
 
-# Network Optimization
+# Network
 CONFIG_TCP_CONG_BBR=y
-CONFIG_TCP_CONG_CUBIC=y
 CONFIG_DEFAULT_TCP_CONG="bbr"
 
-# Preemption (Smoothness)
-CONFIG_PREEMPT_VOLUNTARY=y
-
-# Disable for Battery
+# Disable BTF (stability)
 CONFIG_DEBUG_INFO_BTF=n
 CONFIG_PAHOLE_KCONF=n
-CONFIG_DEBUG_INFO=n
 EOF
 
-# Merge smooth-battery config
-make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$WORKDIR/smooth-battery.config"
+make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$WORKDIR/balanced-performance.config"
 make "${MAKE_ARGS[@]}" olddefconfig
 
 # Verify config
