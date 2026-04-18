@@ -31,9 +31,9 @@ else
 fi
 
 if [ "$KVER" == "6.6" ]; then
-  KERNEL_REPO="https://github.com/TegarXLu/capybara-aosp-gki"
+  KERNEL_REPO="https://github.com/71chjzkc/gki-aosp"
   ANYKERNEL_BRANCH="main"
-  KERNEL_BRANCH="capybara-gki-2.0"
+  KERNEL_BRANCH="main"
 elif [ "$KVER" == "6.1" ]; then
   KERNEL_REPO="https://github.com/ramabondanp/android_kernel_common-6.1.git"
   ANYKERNEL_BRANCH="master"
@@ -401,7 +401,6 @@ if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
   MAKE_ARGS=(
     LLVM=1
     LLVM_IAS=1
-    LTO=thin
     CLANG_TRIPLE=aarch64-linux-gnu-
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
@@ -412,7 +411,6 @@ if [ "$(echo "$LINUX_VERSION_CODE" | head -c1)" -eq 6 ]; then
 else
   MAKE_ARGS=(
     LLVM=1
-    LTO=thin
     CLANG_TRIPLE=aarch64-linux-gnu-
     ARCH=arm64
     CROSS_COMPILE=aarch64-linux-gnu-
