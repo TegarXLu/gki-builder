@@ -453,59 +453,11 @@ if [ "$DEFCONFIG_TO_MERGE" ]; then
   for config in $DEFCONFIG_TO_MERGE; do
     make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$config"
   done
+  else
+    error "scripts/kconfig/merge_config.sh does not exist in the kernel source"
+  fi
+  make "${MAKE_ARGS[@]}" olddefconfig
 fi
-
-# =============================================================================
-# ✅ BALANCED CONFIG - Smooth + Cool (GANTI yang lama)
-# =============================================================================
-log "Applying balanced performance config..."
-cat > "$WORKDIR/balanced-performance.config" << EOF
-# CPU Scheduler - MORE RESPONSIVE
-CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
-CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
-CONFIG_SCHED_MC=y
-CONFIG_SCHED_SMT=y
-CONFIG_SCHED_CLUSTER=y
-
-# ✅ PREEMPT untuk smoothness (GANTI dari PREEMPT_VOLUNTARY)
-CONFIG_PREEMPT=y
-CONFIG_PREEMPT_COUNT=y
-CONFIG_PREEMPTION=y
-
-# Power Management - BALANCED
-CONFIG_PM=y
-CONFIG_PM_SLEEP=y
-CONFIG_PM_RUNTIME=y
-CONFIG_CPU_IDLE=y
-CONFIG_CPU_IDLE_GOV_MENU=y
-CONFIG_SUSPEND=y
-
-# Memory - OPTIMIZED
-CONFIG_TRANSPARENT_HUGEPAGE=y
-CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
-CONFIG_ZSWAP=y
-CONFIG_ZSMALLOC=y
-
-# I/O - PERFORMANCE
-CONFIG_MQ_IOSCHED_DEADLINE=y
-CONFIG_MQ_IOSCHED_KYBER=y
-CONFIG_DEFAULT_MQ_DEADLINE=y
-
-# Network
-CONFIG_TCP_CONG_BBR=y
-CONFIG_DEFAULT_TCP_CONG="bbr"
-
-# Disable BTF (stability)
-CONFIG_DEBUG_INFO_BTF=n
-CONFIG_PAHOLE_KCONF=n
-EOF
-
-make "${MAKE_ARGS[@]}" scripts/kconfig/merge_config.sh -O "$OUTDIR" "$WORKDIR/balanced-performance.config"
-make "${MAKE_ARGS[@]}" olddefconfig
-
-# Verify config
-log "Verifying smooth & battery config..."
-grep -E "CONFIG_CPU_FREQ_GOV_SCHEDUTIL|CONFIG_DEFAULT_MQ_DEADLINE|CONFIG_TCP_CONG_BBR" "$OUTDIR/.config" | tee -a "$WORKDIR/build.log" || true
 
 # Upload defconfig if we are doing defconfig
 if [ "$TODO" == "defconfig" ]; then
